@@ -1,0 +1,139 @@
+{
+  "project": {
+    "name": "CHAOS ERP - MVP (Simple Version)",
+    "version": "0.1.0-mvp",
+    "description": "The simplest possible working version: employees send photos/voice/text via a Telegram bot, an accountant sees them on a plain web dashboard and marks them done. Goal: build and test in one night.",
+    "ai_coding_tool": "Cursor AI or Claude Code",
+    "methodology": "One file at a time, run it after every step, no phase should take more than 30-45 minutes"
+  },
+
+  "global_rules_for_ai": {
+    "language": "Plain JavaScript (Node.js), no TypeScript, no build step",
+    "style": "Use async/await. Keep every file under ~150 lines. No abstractions, no design patterns, no folders-within-folders.",
+    "database": "SQLite, single file db.sqlite, no separate DB server, no ORM - just raw SQL with the sqlite3 or better-sqlite3 package",
+    "security_mvp_level": "Skip JWT/bcrypt for tonight. Dashboard is protected by a single shared password stored in .env, checked on a simple login form, session kept in a cookie. This is NOT production security - it's just enough to test functionality.",
+    "never_do": [
+      "No Docker, no Nginx, no SSL",
+      "No React/Vite/Webpack - dashboard is one static HTML file with <script> tags",
+      "No Socket.io - dashboard just has a 'Refresh' button or auto-refreshes every 5 seconds with fetch()",
+      "No TypeORM, no migrations - just CREATE TABLE IF NOT EXISTS on startup",
+      "Do not build reports/Excel/PDF export - that's a v2 feature"
+    ]
+  },
+
+  "tech_stack": {
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Express",
+      "database": "SQLite (better-sqlite3 package)",
+      "telegram": "node-telegram-bot-api (polling mode, no webhook)",
+      "file_upload": "Multer, saved to local uploads/ folder",
+      "config": "dotenv"
+    },
+    "frontend": {
+      "type": "single static HTML file",
+      "styling": "plain CSS or a CDN copy of Pico.css / Tailwind CDN script, no build tools",
+      "data_fetching": "fetch() with setInterval polling every 5s"
+    },
+    "infrastructure": {
+      "hosting_for_testing": "run locally with 'node server.js', use ngrok or just polling mode so no public URL is needed at all"
+    }
+  },
+
+  "folder_structure": {
+    "root": "chaos-erp-mvp/",
+    "files": {
+      "server.js": "Express app + API routes + serves the dashboard",
+      "bot.js": "Telegram bot logic, required by server.js",
+      "db.js": "SQLite connection + table creation",
+      "uploads/": "photos/, voice/ subfolders",
+      "public/index.html": "the whole dashboard - HTML + CSS + JS in one file",
+      ".env": "BOT_TOKEN, DASHBOARD_PASSWORD, PORT",
+      "package.json": null
+    }
+  },
+
+  "database_schema": {
+    "employees": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "telegram_id": "TEXT UNIQUE",
+      "full_name": "TEXT",
+      "phone": "TEXT",
+      "is_active": "INTEGER DEFAULT 1",
+      "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP"
+    },
+    "records": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "employee_id": "INTEGER",
+      "photo_paths": "TEXT (JSON array as string, e.g. '[\"uploads/photos/1.jpg\"]')",
+      "voice_path": "TEXT (nullable)",
+      "note_text": "TEXT (nullable, free text from employee)",
+      "status": "TEXT DEFAULT 'unread' (unread | read | done)",
+      "accountant_note": "TEXT (nullable, filled in on dashboard)",
+      "amount": "REAL (nullable)",
+      "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
+      "done_at": "TEXT (nullable)"
+    }
+  },
+
+  "build_steps": [
+    {
+      "step": 1,
+      "task": "Project setup",
+      "prompt": "Create a new Node.js project called chaos-erp-mvp. Run npm init -y. Install: express, better-sqlite3, node-telegram-bot-api, multer, dotenv, cookie-parser. Create the folder structure: uploads/photos, uploads/voice, public/. Create a .env file with BOT_TOKEN=, DASHBOARD_PASSWORD=changeme123, PORT=3000.",
+      "expected_output": "npm install completes with no errors, folders exist"
+    },
+    {
+      "step": 2,
+      "task": "Database setup",
+      "prompt": "Create db.js using better-sqlite3. Open (or create) db.sqlite. On startup, run CREATE TABLE IF NOT EXISTS for 'employees' and 'records' tables using the schema below. Export the db instance so other files can require() it and run db.prepare(...).run()/.get()/.all(). Schema:\n\nemployees: id INTEGER PRIMARY KEY AUTOINCREMENT, telegram_id TEXT UNIQUE, full_name TEXT, phone TEXT, is_active INTEGER DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP\n\nrecords: id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER, photo_paths TEXT, voice_path TEXT, note_text TEXT, status TEXT DEFAULT 'unread', accountant_note TEXT, amount REAL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, done_at TEXT",
+      "expected_output": "Running node db.js (or requiring it) creates db.sqlite with both tables, verifiable with 'sqlite3 db.sqlite .tables'"
+    },
+    {
+      "step": 3,
+      "task": "Telegram bot - basic",
+      "prompt": "Create bot.js. Use node-telegram-bot-api in polling mode with token from process.env.BOT_TOKEN. Require db.js.\n\nHandlers:\n1. /start - if the telegram_id isn't in employees table, ask them to share their phone number using a Telegram contact-request button. If they already exist, greet them by name and explain: 'Send me a photo, a voice note, or just type a message anytime, and it'll be logged. Type /new to start a fresh report.'\n2. contact message - save telegram_id, full_name (from Telegram profile), phone into employees table (INSERT OR IGNORE or UPSERT). Confirm activation.\n3. photo message - download the largest photo size with bot.getFileLink, save it to uploads/photos/<timestamp>.jpg using https/fetch, then INSERT a new row in records with employee_id, photo_paths as a JSON array string, status 'unread'. Reply 'Photo received.'\n4. voice message - same pattern, save .ogg file to uploads/voice/, insert record with voice_path. Reply 'Voice note received.'\n5. plain text message (not a command) - insert a record with note_text = the message. Reply 'Got it, logged.'\n\nExport a function attachBot(app) if needed, or just run standalone - keep it simple, this can be its own process for tonight.",
+      "expected_output": "Bot responds to /start, accepts a shared contact, and logging a photo/voice/text each creates a new row in the records table"
+    },
+    {
+      "step": 4,
+      "task": "Express API",
+      "prompt": "Create server.js. Set up Express, cookie-parser, serve static files from public/. Require db.js.\n\nRoutes:\n- POST /login - body { password }. If it matches process.env.DASHBOARD_PASSWORD, set a cookie 'auth=1' (httpOnly) and return { success: true }. Else return { success: false }.\n- Middleware requireAuth - checks the 'auth' cookie on all /api/* routes except /login, returns 401 if missing.\n- GET /api/records - returns all records joined with employee full_name, ordered by created_at DESC. Optional ?status= filter.\n- GET /api/records/:id - returns one record with employee info, and sets status to 'read' if it was 'unread'.\n- PATCH /api/records/:id - body can include accountant_note, amount. Updates those fields.\n- POST /api/records/:id/done - sets status='done', done_at=now.\n- GET /uploads/* - serve files from uploads/ folder (authenticated).\n\nAll responses: { success: boolean, data?: any, error?: string }. Start the server on process.env.PORT. Also require and start bot.js at the bottom so one 'node server.js' runs everything.",
+      "expected_output": "node server.js starts both the Express server and the Telegram bot in one process. curl localhost:3000/api/records (after login) returns JSON"
+    },
+    {
+      "step": 5,
+      "task": "Dashboard - single HTML file",
+      "prompt": "Create public/index.html - a single file with inline <style> and <script>, no frameworks. Use Tailwind via CDN script tag for quick styling if you want, or plain CSS.\n\nFeatures:\n1. A login form (password field) shown if not authenticated - POST to /login, on success show the dashboard.\n2. A table/list of records: employee name, status badge (unread=red, read=orange, done=green), preview (photo thumbnail if photo_paths, an <audio> player if voice_path, or the note_text), created_at.\n3. Auto-refresh the list every 5 seconds using setInterval + fetch('/api/records').\n4. Clicking a record opens a detail panel: shows full photo(s), audio player for voice, a text input for accountant_note, a number input for amount, a 'Save' button (PATCH) and a 'Mark Done' button (POST .../done).\n5. Simple filter buttons at top: All / Unread / Read / Done.",
+      "expected_output": "Opening localhost:3000 shows a login screen, then a working list of records that updates automatically and can be marked done"
+    },
+    {
+      "step": 6,
+      "task": "End-to-end test",
+      "prompt": "Test the full flow manually:\n1. node server.js\n2. On Telegram, message your bot: /start, share phone, send a photo, send a voice note, send a text note\n3. Open localhost:3000, log in with DASHBOARD_PASSWORD\n4. Confirm all 3 records appear as 'unread'\n5. Click one - confirm it becomes 'read', play the voice/view the photo\n6. Add an accountant note + amount, Save, then Mark Done - confirm status turns green\n7. Confirm the dashboard auto-refreshes without a manual reload when you send a new Telegram message",
+      "expected_output": "Full loop works end to end with zero manual DB edits"
+    }
+  ],
+
+  "common_errors_and_solutions": {
+    "bot_not_responding": "Make sure BOT_TOKEN in .env has no quotes/spaces, and you're using polling:true, not webhook, for local testing.",
+    "sqlite_locked": "better-sqlite3 is synchronous and single-file - avoid running two node processes against db.sqlite at once.",
+    "file_not_saving": "Telegram file downloads need bot.getFileLink(file_id) then a fetch/https.get to actually download the bytes - the file_id alone isn't the file.",
+    "cookie_not_sticking": "Make sure fetch() calls from the dashboard include credentials: 'include', and cookie-parser + res.cookie() are set up correctly on the server.",
+    "phone_format": "Telegram sends phone as digits with country code, no plus sign, e.g. '213555123456' - store as-is, don't strip/reformat unless you need to."
+  },
+
+  "later_v2_ideas_not_for_tonight": [
+    "Swap SQLite for Postgres once multiple people need concurrent write access",
+    "Add JWT auth instead of shared password once there are multiple accountants",
+    "Add Excel/PDF export",
+    "Add Socket.io for instant push instead of polling",
+    "Dockerize once you're ready to deploy to a real server",
+    "Add employee disable/enable and multi-department support"
+  ],
+
+  "final_master_prompt": {
+    "description": "Paste this into Cursor/Claude Code at the start of your session.",
+    "prompt": "We are building a minimal MVP of CHAOS ERP tonight, just to test functionality end to end. Keep everything as simple as possible: plain JavaScript (no TypeScript), Express, SQLite via better-sqlite3, node-telegram-bot-api in polling mode, and a single static HTML file for the dashboard (no React, no build step, no Docker). Employees message a Telegram bot with photos/voice/text, which get saved as 'records' with status unread/read/done. An accountant logs into a simple password-protected dashboard, sees new records auto-appear (polling every 5s), opens one to view the photo/audio, adds a note and amount, and marks it done. Follow the build_steps in order, one at a time, testing after each step before moving to the next. Start with step 1: project setup."
+  }
+}

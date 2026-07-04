@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHAOS ERP Dashboard v2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div id="login-screen" class="min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-md w-96">
+      <h1 class="text-2xl font-bold mb-6 text-center">CHAOS ERP Dashboard v2</h1>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input type="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition">Login</button>
+        <p id="login-error" class="text-red-500 text-sm hidden">Invalid password</p>
+      </form>
+    </div>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl font-bold">CHAOS ERP Dashboard v2</h1>
+          <div class="flex items-center gap-4">
+            <button onclick="filterUnread()" class="relative p-2 rounded-md hover:bg-gray-100 transition">
+              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+              </svg>
+              <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+            </button>
+            <div class="flex gap-2">
+              <button onclick="showTab('tasks')" class="tab-btn px-4 py-2 rounded-md bg-blue-500 text-white" data-tab="tasks">Tasks</button>
+              <button onclick="showTab('archived')" class="tab-btn px-4 py-2 rounded-md bg-gray-200 text-gray-700" data-tab="archived">Archived</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <!-- Tasks Tab -->
+      <div id="tasks-tab">
+        <!-- Search and Filter Toolbar -->
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+          <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-[200px]">
+              <input type="text" id="search-input" placeholder="Search by name, username, or phone..." 
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                oninput="debouncedSearch()">
+            </div>
+            <div class="min-w-[200px]">
+              <select id="employee-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onchange="refreshTasks()">
+                <option value="">All Employees</option>
+              </select>
+            </div>
+            <div class="min-w-[150px]">
+              <input type="date" id="date-from" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onchange="refreshTasks()">
+            </div>
+            <div class="min-w-[150px]">
+              <input type="date" id="date-to" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onchange="refreshTasks()">
+            </div>
+            <div class="flex gap-2">
+              <button onclick="setStatusFilter('all')" class="status-btn px-3 py-2 rounded-md bg-blue-500 text-white text-sm" data-status="all">All</button>
+              <button onclick="setStatusFilter('unread')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="unread">Unread</button>
+              <button onclick="setStatusFilter('received')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="received">Received</button>
+              <button onclick="setStatusFilter('read')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="read">Read</button>
+              <button onclick="setStatusFilter('done')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="done">Done</button>
+            </div>
+            <button onclick="refreshTasks()" class="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600">Refresh</button>
+          </div>
+          <p id="result-count" class="text-sm text-gray-500 mt-2"></p>
+        </div>
+
+        <div id="tasks-list" class="space-y-4">
+          <p class="text-gray-500">Loading tasks...</p>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="flex items-center justify-center gap-2 mt-6">
+          <!-- Pagination buttons will be rendered here -->
+        </div>
+      </div>
+
+      <!-- Archived Tab -->
+      <div id="archived-tab" class="hidden">
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+          <button onclick="refreshArchived()" class="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600">Refresh Archived</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full bg-white rounded-lg shadow">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Employee</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Note</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Accountant Note</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Photos</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Voices</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Done Date</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Archived Date</th>
+              </tr>
+            </thead>
+            <tbody id="archived-list" class="divide-y divide-gray-200">
+              <tr><td colspan="8" class="px-4 py-3 text-gray-500">Loading archived tasks...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Detail Modal -->
+  <div id="detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Task Details</h2>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div id="detail-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Photo Lightbox -->
+  <div id="lightbox" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onclick="closeLightbox()">
+    <img id="lightbox-img" class="max-w-[90vw] max-h-[90vh] object-contain">
+  </div>
+
+  <script>
+    let currentStatusFilter = 'all';
+    let currentSearch = '';
+    let currentEmployeeFilter = '';
+    let searchTimeout = null;
+    let employees = [];
+    let seenTaskIds = new Set();
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let totalItems = 0;
+    let totalPages = 1;
+
+    // Request notification permission and init
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    // Play notification sound using Web Audio API
+    function playNotificationSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        setTimeout(() => {
+          oscillator.stop();
+          audioContext.close();
+        }, 200);
+      } catch (e) {
+        console.log('Audio not supported');
+      }
+    }
+
+    // Check for new tasks and notify
+    function checkForNewTasks(tasks) {
+      const newTasks = tasks.filter(t => (t.status === 'unread' || t.status === 'received') && !seenTaskIds.has(t.id));
+      
+      if (newTasks.length > 0) {
+        playNotificationSound();
+        
+        if ('Notification' in window && Notification.permission === 'granted') {
+          newTasks.forEach(task => {
+            const employeeName = task.employee_name || 'Unknown';
+            new Notification(`New Report from ${employeeName}`, {
+              body: `${task.photo_count || 0} photos, ${task.voice_count || 0} voice notes`,
+              icon: '/favicon.ico'
+            });
+          });
+        }
+        
+        // Mark as seen
+        newTasks.forEach(t => seenTaskIds.add(t.id));
+      }
+
+      // Update notification badge
+      updateNotificationBadge(tasks);
+    }
+
+    // Update notification badge count
+    function updateNotificationBadge(tasks) {
+      const unreadCount = tasks.filter(t => t.status === 'unread' || t.status === 'received').length;
+      const badge = document.getElementById('notification-badge');
+      
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // Filter to show only unread/received tasks
+    function filterUnread() {
+      setStatusFilter('unread');
+      // Also include received
+      currentStatusFilter = 'unread';
+      currentPage = 1; // Reset to first page
+      document.querySelectorAll('.status-btn').forEach(btn => {
+        if (btn.dataset.status === 'unread') {
+          btn.classList.remove('bg-gray-200', 'text-gray-700');
+          btn.classList.add('bg-blue-500', 'text-white');
+        } else {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-200', 'text-gray-700');
+        }
+      });
+      refreshTasks();
+    }
+
+    // Render pagination controls
+    function renderPagination() {
+      const container = document.getElementById('pagination');
+      
+      if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let html = '';
+      
+      // Previous button
+      html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>`;
+      
+      // Page numbers
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+          html += `<button onclick="goToPage(${i})" class="px-3 py-1 rounded-md ${i === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">${i}</button>`;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+          html += `<span class="px-2">...</span>`;
+        }
+      }
+      
+      // Next button
+      html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>`;
+      
+      container.innerHTML = html;
+    }
+
+    // Go to specific page
+    function goToPage(page) {
+      if (page < 1 || page > totalPages) return;
+      currentPage = page;
+      refreshTasks();
+    }
+
+    // Check authentication on load
+    function checkAuth() {
+      fetch('/api/tasks')
+        .then(res => {
+          if (res.ok) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            loadEmployees();
+            refreshTasks();
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Login form handler
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        requestNotificationPermission();
+        loadEmployees();
+        refreshTasks();
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    });
+
+    // Load employees for filter dropdown
+    async function loadEmployees() {
+      const res = await fetch('/api/employees', { credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        employees = data.data;
+        const select = document.getElementById('employee-filter');
+        select.innerHTML = '<option value="">All Employees</option>' + 
+          employees.map(emp => `<option value="${emp.id}">${emp.full_name} ${emp.telegram_username ? '@' + emp.telegram_username : ''}</option>`).join('');
+      }
+    }
+
+    // Tab switching
+    function showTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tab) {
+          btn.classList.remove('bg-gray-200', 'text-gray-700');
+          btn.classList.add('bg-blue-500', 'text-white');
+        } else {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-200', 'text-gray-700');
+        }
+      });
+
+      document.getElementById('tasks-tab').classList.toggle('hidden', tab !== 'tasks');
+      document.getElementById('archived-tab').classList.toggle('hidden', tab !== 'archived');
+
+      if (tab === 'archived') {
+        refreshArchived();
+      }
+    }
+
+    // Debounced search
+    function debouncedSearch() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        currentSearch = document.getElementById('search-input').value;
+        refreshTasks();
+      }, 300);
+    }
+
+    // Set status filter
+    function setStatusFilter(status) {
+      currentStatusFilter = status;
+      document.querySelectorAll('.status-btn').forEach(btn => {
+        if (btn.dataset.status === status) {
+          btn.classList.remove('bg-gray-200', 'text-gray-700');
+          btn.classList.add('bg-blue-500', 'text-white');
+        } else {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-200', 'text-gray-700');
+        }
+      });
+      refreshTasks();
+    }
+
+    // Refresh tasks
+    async function refreshTasks() {
+      currentEmployeeFilter = document.getElementById('employee-filter').value;
+      const dateFrom = document.getElementById('date-from').value;
+      const dateTo = document.getElementById('date-to').value;
+      
+      const params = new URLSearchParams();
+      if (currentStatusFilter !== 'all') params.append('status', currentStatusFilter);
+      if (currentSearch) params.append('search', currentSearch);
+      if (currentEmployeeFilter) params.append('employeeId', currentEmployeeFilter);
+      if (dateFrom) params.append('dateFrom', dateFrom);
+      if (dateTo) params.append('dateTo', dateTo);
+      params.append('page', currentPage);
+      params.append('limit', itemsPerPage);
+
+      const url = `/api/tasks${params.toString() ? '?' + params.toString() : ''}`;
+      const res = await fetch(url, { credentials: 'include' });
+      const data = await res.json();
+      
+      if (data.success) {
+        renderTasks(data.data);
+        
+        // Update pagination info
+        if (data.pagination) {
+          totalItems = data.pagination.total;
+          totalPages = data.pagination.totalPages;
+          currentPage = data.pagination.page;
+          renderPagination();
+        }
+        
+        document.getElementById('result-count').textContent = `${totalItems} tasks found`;
+        
+        // Check for new unread/received tasks and notify
+        checkForNewTasks(data.data);
+      }
+    }
+
+    // Render tasks list
+    function renderTasks(tasks) {
+      const container = document.getElementById('tasks-list');
+      
+      if (tasks.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No tasks found.</p>';
+        return;
+      }
+
+      container.innerHTML = tasks.map(task => {
+        const statusColors = {
+          unread: 'bg-red-100 text-red-800',
+          received: 'bg-blue-100 text-blue-800',
+          read: 'bg-orange-100 text-orange-800',
+          done: 'bg-green-100 text-green-800'
+        };
+        const statusColor = statusColors[task.status] || 'bg-gray-100 text-gray-800';
+
+        return `
+          <div class="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition" onclick="openDetail(${task.id})">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium">${task.employee_name}</span>
+                  ${task.telegram_username ? `<span class="text-gray-500 text-sm">@${task.telegram_username}</span>` : ''}
+                  <span class="px-2 py-1 rounded text-xs ${statusColor}">${task.status}</span>
+                </div>
+                <div class="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                  <span>📷 ${task.photo_count}</span>
+                  <span>🎤 ${task.voice_count}</span>
+                  <span>${new Date(task.created_at).toLocaleString()}</span>
+                </div>
+                ${task.note_text ? `<p class="text-sm text-gray-600 mt-2 truncate">${task.note_text.substring(0, 100)}...</p>` : ''}
+                ${task.amount ? `<p class="text-sm font-medium text-green-600 mt-1">${task.amount} Dzd</p>` : ''}
+              </div>
+              <button class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">View</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Open detail modal
+    async function openDetail(id) {
+      const res = await fetch(`/api/tasks/${id}`, { credentials: 'include' });
+      const data = await res.json();
+      
+      if (data.success) {
+        const task = data.data;
+        const content = document.getElementById('detail-content');
+
+        // Photo grid
+        let photoGrid = '';
+        if (task.photos && task.photos.length > 0) {
+          photoGrid = `
+            <div class="mb-4">
+              <h3 class="font-medium mb-2">Photos (${task.photos.length})</h3>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                ${task.photos.map(photo => `
+                  <img src="/${photo.file_path}" 
+                    class="w-full h-32 object-cover rounded cursor-pointer hover:opacity-80 transition"
+                    onclick="openLightbox('/${photo.file_path}')">
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        // Voice notes
+        let voiceList = '';
+        if (task.voices && task.voices.length > 0) {
+          voiceList = `
+            <div class="mb-4">
+              <h3 class="font-medium mb-2">Voice Notes (${task.voices.length})</h3>
+              <div class="space-y-2">
+                ${task.voices.map((voice, index) => `
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-500 w-16">Voice ${index + 1}</span>
+                    <audio controls class="flex-1">
+                      <source src="/${voice.file_path}" type="audio/ogg">
+                    </audio>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        content.innerHTML = `
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="font-medium">Employee:</span> ${task.employee_name}
+                ${task.telegram_username ? `<span class="text-gray-500">@${task.telegram_username}</span>` : ''}
+              </div>
+              <div>
+                <span class="font-medium">Phone:</span> ${task.employee_phone || 'N/A'}
+              </div>
+              <div>
+                <span class="font-medium">Status:</span> 
+                <span class="px-2 py-1 rounded text-xs ${task.status === 'unread' ? 'bg-red-100 text-red-800' : task.status === 'read' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}">${task.status}</span>
+              </div>
+              <div>
+                <span class="font-medium">Created:</span> ${new Date(task.created_at).toLocaleString()}
+              </div>
+            </div>
+            ${photoGrid}
+            ${voiceList}
+            ${task.note_text ? `<div><span class="font-medium">Note:</span><p class="mt-1 text-gray-700 whitespace-pre-wrap">${task.note_text}</p></div>` : ''}
+            <div class="border-t pt-4">
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Status</label>
+                <select id="task-status" class="w-full px-3 py-2 border rounded-md">
+                  <option value="unread" ${task.status === 'unread' ? 'selected' : ''}>Unread</option>
+                  <option value="received" ${task.status === 'received' ? 'selected' : ''}>Received</option>
+                  <option value="read" ${task.status === 'read' ? 'selected' : ''}>Read</option>
+                  <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Accountant Note</label>
+                <textarea id="accountant-note" class="w-full px-3 py-2 border rounded-md" rows="3">${task.accountant_note || ''}</textarea>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Amount</label>
+                <input type="number" id="amount" class="w-full px-3 py-2 border rounded-md" value="${task.amount || ''}" step="0.01">
+              </div>
+              <div class="flex gap-2">
+                <button onclick="saveTask(${task.id})" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Save</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('detail-modal').classList.remove('hidden');
+      }
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+    }
+
+    // Open lightbox
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.remove('hidden');
+    }
+
+    // Close lightbox
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.add('hidden');
+    }
+
+    // Save task
+    async function saveTask(id) {
+      const accountantNote = document.getElementById('accountant-note').value;
+      const amount = document.getElementById('amount').value;
+      const status = document.getElementById('task-status').value;
+
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          accountant_note: accountantNote, 
+          amount: amount ? parseFloat(amount) : null,
+          status: status
+        }),
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('Saved successfully');
+        refreshTasks();
+      } else {
+        alert('Error saving: ' + data.error);
+      }
+    }
+
+    // Mark as done
+    async function markDone(id) {
+      const res = await fetch(`/api/tasks/${id}/done`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        closeModal();
+        refreshTasks();
+      } else {
+        alert('Error marking as done: ' + data.error);
+      }
+    }
+
+    // Refresh archived tasks
+    async function refreshArchived() {
+      const res = await fetch('/api/archived-tasks', { credentials: 'include' });
+      const data = await res.json();
+      
+      if (data.success) {
+        renderArchived(data.data);
+      }
+    }
+
+    // Render archived tasks
+    function renderArchived(archived) {
+      const tbody = document.getElementById('archived-list');
+      
+      if (archived.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-3 text-gray-500">No archived tasks found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = archived.map(task => `
+        <tr>
+          <td class="px-4 py-3 text-sm">${task.employee_name}</td>
+          <td class="px-4 py-3 text-sm max-w-xs truncate">${task.note_text || '-'}</td>
+          <td class="px-4 py-3 text-sm max-w-xs truncate">${task.accountant_note || '-'}</td>
+          <td class="px-4 py-3 text-sm">${task.amount ? '$' + task.amount : '-'}</td>
+          <td class="px-4 py-3 text-sm">${task.photo_count}</td>
+          <td class="px-4 py-3 text-sm">${task.voice_count}</td>
+          <td class="px-4 py-3 text-sm">${new Date(task.task_done_at).toLocaleString()}</td>
+          <td class="px-4 py-3 text-sm">${new Date(task.archived_at).toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Auto-refresh every 5 seconds (only on tasks tab)
+    setInterval(() => {
+      if (!document.getElementById('tasks-tab').classList.contains('hidden')) {
+        refreshTasks();
+      }
+    }, 5000);
+
+    // Initial auth check
+    checkAuth();
+  </script>
+</body>
+</html>

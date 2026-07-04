@@ -1,0 +1,164 @@
+{
+  "project": {
+    "name": "CHAOS ERP - Telegram Bot Arabic UX Upgrade",
+    "version": "0.3.0-mvp",
+    "description": "Same backend/database from v2. This prompt focuses ONLY on making the Telegram bot side feel simple and native in Arabic - big clear buttons instead of typed commands, short friendly messages, no confusion about what to do next.",
+    "ai_coding_tool": "Cursor AI or Claude Code",
+    "methodology": "Only touch bot.js (and a new bot-messages.js for text/strings). Do not change the database schema or dashboard from v2."
+  },
+
+  "global_rules_for_ai": {
+    "language_of_code": "Plain JavaScript, same as before",
+    "language_of_bot_messages": "Arabic (Modern Standard or simple Algerian-friendly Arabic), right-to-left, short sentences, use emojis as visual anchors since employees may not be technical",
+    "ux_principle": "The employee should almost NEVER need to type a command. Every action is a button. Typing is only for free-text notes.",
+    "keyboard_type": "Use Telegram Reply Keyboard (the buttons that replace the normal keyboard at the bottom of the chat) for the main menu, since it's always visible and easiest for non-technical users. Use Inline Keyboards (buttons attached to a specific message) only for one-time confirmations like 'هل تريد إنهاء التقرير؟'",
+    "never_do": [
+      "Don't require employees to remember or type slash-commands like /new or /done anymore - replace with buttons",
+      "Don't show technical error messages - always show a friendly Arabic message and what to do next",
+      "Don't leave the employee without a visible next step - every bot message should make clear what button to press"
+    ]
+  },
+
+  "bot_persona": {
+    "tone": "Friendly, respectful, simple - like a helpful colleague, not a formal system",
+    "emoji_usage": "Use consistently as visual icons: 📸 for photos, 🎤 for voice, 📝 for text notes, ✅ for done/success, 🆕 for new report, 📊 for status/summary, ⚠️ for warnings"
+  },
+
+  "main_menu_buttons": {
+    "layout": "Reply keyboard, 2 columns x 2 rows, always visible at the bottom of the chat",
+    "buttons": [
+      { "label": "🆕 تقرير جديد", "meaning": "Start a new report (equivalent to old /new)" },
+      { "label": "✅ إنهاء التقرير", "meaning": "Finish/close the current report (equivalent to old /done)" },
+      { "label": "📊 آخر تقاريري", "meaning": "Show my last 5 reports and their status" },
+      { "label": "ℹ️ مساعدة", "meaning": "Show a short help message explaining how the bot works" }
+    ]
+  },
+
+  "conversation_flows": {
+    "first_time_start": {
+      "trigger": "/start or any message from an unregistered telegram_id",
+      "bot_message_1": "مرحباً بك 👋\nأنا بوت التقارير الخاص بالشركة.\nلتفعيل حسابك، اضغط على الزر بالأسفل لمشاركة رقم هاتفك 📱",
+      "shows": "A single reply-keyboard button using request_contact: true, labeled '📱 مشاركة رقم الهاتف'",
+      "after_contact_received": "بوت: تم تفعيل حسابك بنجاح ✅\nأهلاً [الاسم]! يمكنك الآن إرسال تقاريرك.\n(then show the main menu buttons)"
+    },
+    "returning_user_start": {
+      "trigger": "/start from an already-registered employee",
+      "bot_message": "أهلاً بعودتك [الاسم] 👋\nاختر من القائمة بالأسفل للبدء:",
+      "shows": "main menu buttons"
+    },
+    "new_report_pressed": {
+      "trigger": "🆕 تقرير جديد button",
+      "check": "If there's already an open task, ask for confirmation first (inline keyboard: 'لديك تقرير مفتوح غير منته، هل تريد المتابعة فيه أم بدء تقرير جديد؟' with buttons [متابعة التقرير الحالي] [بدء تقرير جديد]).",
+      "bot_message_if_new": "تم فتح تقرير جديد 🆕\nالآن أرسل:\n📸 الصور (يمكنك إرسال أكثر من صورة)\n🎤 رسالة صوتية\n📝 أو اكتب ملاحظة نصية\n\nعند الانتهاء اضغط ✅ إنهاء التقرير"
+    },
+    "photo_received": {
+      "trigger": "employee sends a photo while a task is open",
+      "bot_message": "📸 تم استلام الصورة رقم {count}\nيمكنك إرسال المزيد أو الضغط على ✅ إنهاء التقرير عند الانتهاء",
+      "if_no_open_task": "auto-create a new task silently, then send the same confirmation message"
+    },
+    "voice_received": {
+      "trigger": "employee sends a voice note while a task is open",
+      "bot_message": "🎤 تم استلام الرسالة الصوتية ✅\nيمكنك إضافة المزيد أو الضغط على ✅ إنهاء التقرير"
+    },
+    "text_received": {
+      "trigger": "employee types free text while a task is open (and it's not one of the menu button labels)",
+      "bot_message": "📝 تم تسجيل ملاحظتك"
+    },
+    "text_received_no_open_task": {
+      "trigger": "employee types free text with no open task and it's not a menu button",
+      "bot_message": "لا يوجد تقرير مفتوح حالياً 🤔\nاضغط على 🆕 تقرير جديد أولاً لبدء تقرير",
+      "shows": "main menu buttons again so they're never stuck"
+    },
+    "finish_report_pressed": {
+      "trigger": "✅ إنهاء التقرير button",
+      "check_empty": "If the open task has zero photos, zero voice notes, and no text, reply: 'التقرير فارغ حالياً ⚠️\\nأرسل صورة أو رسالة صوتية أو ملاحظة أولاً' and do NOT close it.",
+      "confirm": "If it has content, show an inline keyboard summary: 'ملخص التقرير:\\n📸 {photoCount} صورة\\n🎤 {voiceCount} رسالة صوتية\\n📝 {hasText ? \"يوجد ملاحظة نصية\" : \"لا توجد ملاحظة\"}\\n\\nهل تريد إرسال التقرير؟' with inline buttons [✅ نعم، أرسل] [❌ إلغاء والمتابعة]",
+      "on_confirm": "close the task (clear open_task_id), reply: 'تم إرسال تقريرك بنجاح ✅ شكراً لك 🌟' then show main menu buttons",
+      "on_cancel": "reply 'حسناً، يمكنك متابعة إضافة المزيد' and keep the task open"
+    },
+    "my_reports_pressed": {
+      "trigger": "📊 آخر تقاريري button",
+      "logic": "Query the last 5 tasks for this employee_id, ordered by created_at DESC",
+      "bot_message_format": "📊 آخر تقاريرك:\n\n{for each task}: {emoji_for_status} {date} - {photoCount} صورة، {voiceCount} صوت - الحالة: {status_in_arabic}\n\n(status_in_arabic map: unread='بانتظار المراجعة ⏳', read='قيد المراجعة 👀', done='تمت المعالجة ✅')"
+    },
+    "help_pressed": {
+      "trigger": "ℹ️ مساعدة button",
+      "bot_message": "كيف يعمل البوت 🤖:\n\n1️⃣ اضغط 🆕 تقرير جديد للبدء\n2️⃣ أرسل الصور والرسائل الصوتية والملاحظات\n3️⃣ اضغط ✅ إنهاء التقرير عند الانتهاء\n4️⃣ يمكنك متابعة حالة تقاريرك من 📊 آخر تقاريري\n\nإذا واجهت أي مشكلة تواصل مع المحاسب مباشرة."
+    },
+    "unrecognized_input": {
+      "trigger": "anything the bot doesn't understand (e.g. a document/sticker/random command)",
+      "bot_message": "لم أفهم هذا الطلب 🤔\nيرجى استخدام الأزرار بالأسفل",
+      "shows": "main menu buttons"
+    },
+    "inactive_employee": {
+      "trigger": "a message from a telegram_id that exists but is_active = 0",
+      "bot_message": "عذراً، تم إيقاف حسابك ⚠️\nيرجى التواصل مع الإدارة"
+    }
+  },
+
+  "build_steps": [
+    {
+      "step": 1,
+      "task": "Create the Arabic strings file",
+      "prompt": "Create bot-messages.js exporting a single object `messages` with all Arabic text as keys matching conversation_flows above (e.g. messages.welcomeNew, messages.welcomeBack, messages.reportOpened, messages.photoReceived(count), messages.voiceReceived, messages.noteReceived, messages.noOpenTask, messages.emptyReportWarning, messages.reportSummary(photoCount, voiceCount, hasText), messages.reportSent, messages.reportCancelled, messages.myReportsHeader, messages.reportLine(date, photoCount, voiceCount, statusArabic), messages.help, messages.unrecognized, messages.inactiveAccount, messages.activationSuccess(name), messages.askPhone). Functions that need dynamic values (count, name, etc.) should be functions returning a string, not plain strings. This keeps all Arabic text in one place, easy to review or translate later.",
+      "expected_output": "bot-messages.js exports all message templates cleanly, no logic inside it, just strings/template functions"
+    },
+    {
+      "step": 2,
+      "task": "Build the main menu reply keyboard",
+      "prompt": "In bot.js, define a constant mainMenuKeyboard using node-telegram-bot-api's reply_markup format:\n{ reply_markup: { keyboard: [['🆕 تقرير جديد', '✅ إنهاء التقرير'], ['📊 آخر تقاريري', 'ℹ️ مساعدة']], resize_keyboard: true } }\nAlso define a phoneRequestKeyboard for first-time users:\n{ reply_markup: { keyboard: [[{ text: '📱 مشاركة رقم الهاتف', request_contact: true }]], resize_keyboard: true, one_time_keyboard: true } }\nUse these constants everywhere instead of typing the object each time.",
+      "expected_output": "Sending /start shows a persistent 2x2 button keyboard at the bottom of the Telegram chat instead of just text"
+    },
+    {
+      "step": 3,
+      "task": "Rewrite /start and contact handler with Arabic UX",
+      "prompt": "Update the /start handler: if employee not found in DB, send messages.askPhone with phoneRequestKeyboard. If found and active, send messages.welcomeBack(fullName) with mainMenuKeyboard. If found but inactive, send messages.inactiveAccount.\n\nUpdate the contact handler: save employee (telegram_id, telegram_username, full_name from ctx.from.first_name+last_name, phone), then reply with messages.activationSuccess(name) followed immediately by a second message showing mainMenuKeyboard so the buttons appear right away.",
+      "expected_output": "New user flow: /start -> tap phone-share button -> instantly see the 4-button main menu, all in Arabic"
+    },
+    {
+      "step": 4,
+      "task": "Wire the 4 main menu buttons as text handlers",
+      "prompt": "Reply keyboard button presses arrive as normal text messages matching the button label exactly. In your message handler, check msg.text against the 4 known labels BEFORE treating it as a free-text note:\n\n- '🆕 تقرير جديد' -> run the new_report flow from conversation_flows (check for existing open task first, use inline keyboard confirmation if one is open)\n- '✅ إنهاء التقرير' -> run the finish_report flow (check empty, show inline summary confirmation with callback buttons)\n- '📊 آخر تقاريري' -> query last 5 tasks for this employee, format with messages.reportLine, send as one message\n- 'ℹ️ مساعدة' -> send messages.help\n\nAny other text, if there's an open task, becomes a note (messages.noteReceived); if no open task, send messages.noOpenTask + show mainMenuKeyboard again.",
+      "expected_output": "Every button does exactly what conversation_flows describes, and typing random text either logs a note or nudges the user back to the menu"
+    },
+    {
+      "step": 5,
+      "task": "Inline keyboard confirmations (finish report + resume vs new)",
+      "prompt": "Implement callback_query handlers for two inline keyboards:\n\n1. Finish-report confirmation: buttons with callback_data 'confirm_send' and 'cancel_send'. On 'confirm_send': close the task, edit the original message to remove buttons, send messages.reportSent + mainMenuKeyboard. On 'cancel_send': edit message to remove buttons, send messages.reportCancelled.\n\n2. Existing-open-task confirmation (when they press 'تقرير جديد' while one is already open): buttons 'resume_existing' and 'start_new'. On 'resume_existing': just send the 'still open, keep sending' message. On 'start_new': close the old task silently (mark it done or leave as-is per your choice, but clearly create a fresh task and set it as open_task_id), then send messages.reportOpened.\n\nAlways call bot.answerCallbackQuery(callback_query.id) to remove the loading spinner on the button.",
+      "expected_output": "Pressing inline buttons updates the chat smoothly with no dangling 'loading' spinner, and correctly branches the logic"
+    },
+    {
+      "step": 6,
+      "task": "Polish: typing indicators and file confirmations with running counts",
+      "prompt": "For nicer UX: call bot.sendChatAction(chatId, 'upload_photo') or 'typing' before processing a photo/voice download so the user sees the bot is 'working'. Track photoCount and voiceCount for the CURRENT open task by querying task_photos/task_voices counts (or keep a simple in-memory cache keyed by task_id) so messages.photoReceived(count) always shows the correct running total, e.g. 'تم استلام الصورة رقم 3' not just 'تم استلام صورة'.",
+      "expected_output": "Bot shows a brief 'uploading photo' indicator, and each confirmation message shows an accurate incrementing count"
+    },
+    {
+      "step": 7,
+      "task": "End-to-end Arabic UX test",
+      "prompt": "Test as a real employee would, only tapping buttons, never typing commands:\n1. /start on a fresh Telegram account -> tap share phone -> confirm Arabic welcome + main menu appears\n2. Tap 🆕 تقرير جديد -> confirm Arabic instructions appear\n3. Send 2 photos -> confirm each shows an accurate Arabic count message\n4. Send a voice note -> confirm Arabic confirmation\n5. Type a random note -> confirm 'تم تسجيل ملاحظتك'\n6. Tap ✅ إنهاء التقرير -> confirm the Arabic summary with correct counts appears with Yes/Cancel buttons -> tap Yes -> confirm success message + menu returns\n7. Tap 📊 آخر تقاريري -> confirm the just-sent report appears with correct status in Arabic\n8. Tap 🆕 تقرير جديد again while nothing is open -> confirm it opens cleanly with no leftover confirmation dialogs\n9. Try tapping 🆕 تقرير جديد mid-report (while one is already open) -> confirm the resume-vs-new inline choice appears correctly",
+      "expected_output": "A non-technical Arabic-speaking employee can complete a full report using ONLY buttons, with clear feedback at every step"
+    }
+  ],
+
+  "common_errors_and_solutions": {
+    "buttons_not_showing": "reply_markup must be inside the options object of bot.sendMessage(chatId, text, options) - a common mistake is putting it at the top level of the call instead.",
+    "button_text_treated_as_note": "Make sure the exact button label strings (including emoji) match exactly what you check in the text handler - copy-paste them, don't retype, since emoji characters can differ.",
+    "rtl_text_looks_broken_in_code": "Arabic in JS string literals works fine at runtime even if your code editor displays it oddly - just make sure the file is saved as UTF-8.",
+    "double_menu_after_contact": "Sending the welcome text and the menu keyboard as ONE message with reply_markup is fine and often better than two separate messages - avoid sending the menu keyboard twice in a row.",
+    "inline_buttons_stack_up": "Always edit or remove the inline keyboard (bot.editMessageReplyMarkup with empty keyboard, or editMessageText) after the user taps confirm/cancel, so old confirmation buttons don't stay clickable and cause confusion later.",
+    "counts_reset_or_wrong": "Always get the count from a fresh DB query (COUNT(*) FROM task_photos WHERE task_id=?) right after inserting, don't rely on in-memory counters that reset if the bot restarts."
+  },
+
+  "later_ideas_not_for_tonight": [
+    "Add a language toggle (Arabic/French) stored per employee for mixed teams",
+    "Voice-guided help (bot sends a short voice note explaining how to use it)",
+    "Daily reminder message to employees who haven't sent a report by a certain time",
+    "Let employees edit/delete a photo before finishing the report"
+  ],
+
+  "final_master_prompt": {
+    "description": "Paste this into Cursor/Claude Code to apply the Arabic UX upgrade on top of the v2 backend.",
+    "prompt": "We're upgrading only the Telegram bot side of CHAOS ERP for a simple, clear Arabic user experience. Do not change the database schema or the dashboard. Replace slash-commands with a persistent Arabic reply-keyboard menu: 🆕 تقرير جديد, ✅ إنهاء التقرير, 📊 آخر تقاريري, ℹ️ مساعدة. Every bot message is short, friendly Arabic with emoji anchors (📸 photos, 🎤 voice, 📝 text, ✅ done). Use inline keyboards only for one-time confirmations (finishing a report, or resuming vs starting a new one while one is already open). The employee should never need to type a command - only buttons, plus free text for notes. Put all Arabic strings in a separate bot-messages.js file. Follow build_steps in order, testing after each step. Start with step 1."
+  }
+}

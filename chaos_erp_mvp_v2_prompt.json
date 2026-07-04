@@ -1,0 +1,170 @@
+{
+  "project": {
+    "name": "CHAOS ERP - MVP v2 (Grouped Tasks + Smart Dashboard)",
+    "version": "0.2.0-mvp",
+    "description": "Same simple stack as v1, but a report from an employee is now ONE task that can contain many photos + voice notes + text, instead of one row per message. Dashboard gets a real photo grid, search/filter by employee, and done tasks auto-archive after 7 days.",
+    "ai_coding_tool": "Cursor AI or Claude Code",
+    "methodology": "Build on top of the v1 MVP if you already have it. If starting fresh, follow build_steps in order. One file at a time, test after every step."
+  },
+
+  "global_rules_for_ai": {
+    "language": "Plain JavaScript (Node.js), no TypeScript, no build step",
+    "style": "async/await everywhere, keep files small and readable",
+    "database": "Still SQLite via better-sqlite3 - no server, no ORM, raw SQL",
+    "security_mvp_level": "Same as v1 - single shared dashboard password via cookie. Still not production-grade, just enough to test.",
+    "never_do": [
+      "No Docker, no Nginx, no SSL",
+      "No React/Vite - dashboard stays a single static HTML file",
+      "No Socket.io - keep polling every 5s, it's simpler and works fine for one accountant",
+      "Don't overwrite v1 logic if it exists - extend it"
+    ]
+  },
+
+  "what_changed_from_v1": {
+    "grouped_tasks": "A 'task' now equals one full report session from an employee, holding many photos + multiple voice notes + text, not one row per file.",
+    "photo_grid": "Dashboard shows all photos of a task in a responsive multi-column grid (like a gallery), not stacked in a single column.",
+    "search_and_filter": "Dashboard can search/filter by employee name, Telegram username, or phone, plus filter by status.",
+    "auto_archive": "A background job runs daily. Any task with status='done' AND done more than 7 days ago gets its summary saved to an archive table, its files deleted from disk, and the original task + its photos/voices removed from the live tables. Tasks that are NOT done are never touched."
+  },
+
+  "tech_stack": {
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Express",
+      "database": "SQLite (better-sqlite3)",
+      "telegram": "node-telegram-bot-api (polling mode)",
+      "file_upload": "Multer + direct Telegram file download",
+      "scheduler": "node-cron (for the daily auto-archive job) - lightweight, no extra infra",
+      "config": "dotenv"
+    },
+    "frontend": {
+      "type": "single static HTML file, or 2 files (index.html + app.js) if it grows too long",
+      "styling": "Tailwind via CDN script tag - use CSS grid for the photo gallery",
+      "data_fetching": "fetch() polling every 5s + manual refresh button"
+    }
+  },
+
+  "database_schema": {
+    "employees": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "telegram_id": "TEXT UNIQUE",
+      "telegram_username": "TEXT (nullable, the @handle if they have one)",
+      "full_name": "TEXT",
+      "phone": "TEXT",
+      "is_active": "INTEGER DEFAULT 1",
+      "open_task_id": "INTEGER (nullable) - points to the task currently being filled by this employee, so new photos/voice/text attach to it instead of creating a new task",
+      "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP"
+    },
+    "tasks": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "employee_id": "INTEGER",
+      "note_text": "TEXT (nullable) - combined/latest free text from employee, can append with newlines if they send multiple texts",
+      "status": "TEXT DEFAULT 'unread' (unread | read | done)",
+      "accountant_note": "TEXT (nullable)",
+      "amount": "REAL (nullable)",
+      "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
+      "updated_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
+      "done_at": "TEXT (nullable)"
+    },
+    "task_photos": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "task_id": "INTEGER",
+      "file_path": "TEXT",
+      "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP"
+    },
+    "task_voices": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "task_id": "INTEGER",
+      "file_path": "TEXT",
+      "duration_seconds": "INTEGER (nullable)",
+      "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP"
+    },
+    "archived_tasks": {
+      "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+      "original_task_id": "INTEGER",
+      "employee_name": "TEXT",
+      "employee_phone": "TEXT",
+      "note_text": "TEXT",
+      "accountant_note": "TEXT",
+      "amount": "REAL",
+      "photo_count": "INTEGER",
+      "voice_count": "INTEGER",
+      "task_created_at": "TEXT",
+      "task_done_at": "TEXT",
+      "archived_at": "TEXT DEFAULT CURRENT_TIMESTAMP"
+    }
+  },
+
+  "build_steps": [
+    {
+      "step": 1,
+      "task": "Migrate schema (if extending v1)",
+      "prompt": "If db.js already has a 'records' table from v1, rename the concept to 'tasks' and split it: create tasks, task_photos, task_voices, archived_tasks tables per the schema above, using CREATE TABLE IF NOT EXISTS. Add telegram_username and open_task_id columns to employees if missing (use ALTER TABLE ... ADD COLUMN wrapped in try/catch since SQLite errors if the column already exists). If this is a fresh project, just create all tables directly.",
+      "expected_output": "db.sqlite has employees, tasks, task_photos, task_voices, archived_tasks tables"
+    },
+    {
+      "step": 2,
+      "task": "Bot logic - grouped task sessions",
+      "prompt": "Update bot.js with this session logic:\n\n1. /start - same as v1, register employee via shared contact, also save telegram_username from ctx.from.username if present.\n2. /new command - create a new row in tasks (status='unread'), set employees.open_task_id to this new task's id, reply 'New report started. Send photos, voice notes, or text - send /done when finished.'\n3. On photo message - if employee.open_task_id is null, auto-create a new task first (so employees who forget /new still work), then download the photo and INSERT into task_photos with that task_id. Reply with a running counter, e.g. 'Photo 3 added.'\n4. On voice message - same pattern, INSERT into task_voices. Reply 'Voice note added.'\n5. On plain text (not a command) - append to tasks.note_text of the open task (or create one if none open). Use a newline to separate multiple texts.\n6. /done command - if there's an open task, clear employees.open_task_id (set to null), update tasks.updated_at, reply with a summary: 'Report closed: X photos, Y voice notes. Thanks!' If no open task, reply 'No active report - send /new to start one.'\n7. Update tasks.updated_at on every new photo/voice/text added to it.",
+      "expected_output": "Sending /new, then 3 photos, then a voice note, then /done creates exactly ONE row in tasks with 3 rows in task_photos and 1 row in task_voices, all sharing the same task_id"
+    },
+    {
+      "step": 3,
+      "task": "API - grouped task endpoints with search/filter",
+      "prompt": "Update server.js API routes:\n\n- GET /api/tasks - supports query params: ?status=unread|read|done, ?search=text (matches employee full_name, telegram_username, or phone using LIKE), ?employeeId=. Returns tasks joined with employee info, plus photo_count and voice_count (subqueries or JOIN + GROUP BY). Order by created_at DESC.\n- GET /api/tasks/:id - returns one task with employee info, the full array of photo file_paths (from task_photos), and array of voice file_paths (from task_voices). Marks status 'unread' -> 'read' if needed.\n- PATCH /api/tasks/:id - update accountant_note and/or amount.\n- POST /api/tasks/:id/done - set status='done', done_at=now.\n- GET /api/employees - list all employees (id, full_name, telegram_username, phone) for the filter dropdown.\n- Keep the same { success, data, error } response shape and the existing auth cookie middleware from v1.",
+      "expected_output": "GET /api/tasks?search=ahmed or ?status=done returns correctly filtered results with accurate photo_count/voice_count"
+    },
+    {
+      "step": 4,
+      "task": "Dashboard - photo grid gallery",
+      "prompt": "Update public/index.html:\n\n1. Task list view: each row/card shows employee name + telegram username, status badge, small thumbnail count badge like '📷 5  🎤 2', created_at, and a 'View' button.\n2. Task detail view (opens on click, as a modal or side panel): display all photos in a responsive CSS grid, e.g. 'grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;' - NOT a single stacked column. Clicking a photo opens it larger (simple lightbox: full-screen overlay with the clicked image, click again to close).\n3. Below the photo grid, list all voice notes as separate <audio controls> players, labeled 'Voice 1', 'Voice 2', etc.\n4. Show note_text, then editable accountant_note textarea and amount input, Save button, Mark Done button - same as v1 but now for the whole grouped task.",
+      "expected_output": "Opening a task with 6 photos shows them in a multi-column grid (e.g. 4-5 per row on desktop), not one long column"
+    },
+    {
+      "step": 5,
+      "task": "Dashboard - search and filter bar",
+      "prompt": "Add a toolbar at the top of the dashboard with:\n1. A text search input (debounced ~300ms) that filters by employee name/username/phone by calling GET /api/tasks?search=...\n2. A dropdown populated from GET /api/employees to filter to one specific employee (?employeeId=).\n3. Status filter buttons: All / Unread / Read / Done (?status=...).\n4. All three filters combine (search + employee + status can be used together) and re-fetch the task list on any change.\n5. Show a small result count, e.g. '12 tasks found'.",
+      "expected_output": "Typing a name in search, or picking an employee from the dropdown, instantly narrows the visible task list"
+    },
+    {
+      "step": 6,
+      "task": "Auto-archive job for done tasks (7 days)",
+      "prompt": "Install node-cron. Create archive.js with a function archiveOldDoneTasks() that:\n1. Finds all tasks where status='done' AND done_at is older than 7 days (julianday('now') - julianday(done_at) > 7).\n2. For each such task: insert a summary row into archived_tasks (employee_name, employee_phone, note_text, accountant_note, amount, photo_count, voice_count, task_created_at, task_done_at) BEFORE deleting anything.\n3. Delete the actual photo/voice files from disk (fs.unlinkSync on each task_photos/task_voices file_path, wrapped in try/catch so a missing file doesn't crash the job).\n4. Delete the rows from task_photos and task_voices for that task, then delete the task row itself.\n5. Log how many tasks were archived.\n\nIMPORTANT: only status='done' tasks are ever touched - unread/read tasks must never be archived or deleted, no matter how old.\n\nIn server.js, schedule this with node-cron to run once a day (e.g. cron.schedule('0 3 * * *', archiveOldDoneTasks) - 3 AM daily), and also run it once on server startup so you can test it immediately without waiting a day.",
+      "expected_output": "Manually running archiveOldDoneTasks() (or setting a task's done_at to 8 days ago in the DB for testing) moves it into archived_tasks, deletes its files, and removes it from the live tasks list on the dashboard"
+    },
+    {
+      "step": 7,
+      "task": "Dashboard - simple archive view (optional but recommended)",
+      "prompt": "Add a small 'Archived' tab/link on the dashboard that calls a new GET /api/archived-tasks endpoint (returns rows from archived_tasks, newest first). Show them as a simple read-only table: employee name, note, accountant note, amount, photo/voice counts, done date, archived date. No editing - this is just a historical record since the files are already deleted.",
+      "expected_output": "Archived tab shows a lightweight table of past completed & cleaned-up tasks"
+    },
+    {
+      "step": 8,
+      "task": "End-to-end test",
+      "prompt": "Test the full v2 flow:\n1. On Telegram: /new, send 4 photos, 1 voice note, a text message, then /done - confirm the bot replies with a correct summary count.\n2. Dashboard: confirm exactly ONE task appears (not 6), with correct photo/voice badges.\n3. Open it - confirm the photo grid shows multiple columns and the lightbox works, confirm the voice note plays.\n4. Search for the employee's name - confirm it filters correctly. Filter by employee dropdown - same. Filter by status.\n5. Add accountant note + amount, Save, Mark Done.\n6. For testing archive: manually run 'UPDATE tasks SET done_at = datetime('now','-8 days') WHERE id=<that task id>;' in the SQLite DB, then call archiveOldDoneTasks() (or restart the server) - confirm the task disappears from the main list, its files are gone from uploads/, and it now shows up in the Archived tab.\n7. Confirm a task that is NOT done, even if very old, is never touched by the archive job.",
+      "expected_output": "Full flow works: grouped tasks, gallery view, search/filter, and archive-after-7-days-for-done-only all function correctly"
+    }
+  ],
+
+  "common_errors_and_solutions": {
+    "photos_still_separate_tasks": "Make sure employees.open_task_id is being set on /new and checked (not just created blindly) on every photo/voice/text handler - this is the #1 cause of one-task-per-photo bugs.",
+    "grid_still_one_column": "Check you're using CSS grid (display:grid + grid-template-columns), not flex-direction:column or default block divs stacking. If using Tailwind CDN, use classes like 'grid grid-cols-2 md:grid-cols-4 gap-2'.",
+    "search_too_slow_or_no_results": "SQLite LIKE is case-sensitive by default for non-ASCII text; for Arabic/French names consider LOWER(column) LIKE LOWER(?) on both sides.",
+    "archive_deletes_wrong_tasks": "Double-check the WHERE clause always includes status='done' AND the date condition together - never archive based on date alone.",
+    "cron_not_running": "node-cron keeps the process alive but does nothing if the Node process itself isn't running continuously - make sure server.js is the one long-running process (not restarted per request).",
+    "open_task_never_closes": "If an employee forgets /done, their open_task_id stays set forever and new unrelated reports days later get merged into the old task. Consider auto-closing an open task if it hasn't been touched in e.g. 2 hours (check tasks.updated_at) - optional improvement, mention it to the user rather than silently deciding."
+  },
+
+  "later_v3_ideas_not_for_tonight": [
+    "Auto-close an idle open task after N hours of inactivity instead of requiring /done",
+    "Export archived_tasks to Excel/CSV on demand before they're too old to review",
+    "Multiple accountants with individual logins",
+    "Push notification (Telegram message back to accountant) when a new task arrives, instead of only polling",
+    "Compress/resize photos on upload to save disk space before archiving"
+  ],
+
+  "final_master_prompt": {
+    "description": "Paste this into Cursor/Claude Code to continue from the v1 MVP.",
+    "prompt": "We're upgrading the CHAOS ERP MVP. Keep the exact same simple stack: plain JavaScript, Express, SQLite (better-sqlite3), node-telegram-bot-api polling, single-file HTML dashboard, no Docker/React/TypeScript. The key change: a report is now a single grouped 'task' that can hold many photos and voice notes, started with /new and closed with /done, instead of one row per Telegram message. The dashboard must show all photos of a task in a multi-column grid gallery (not stacked), support search/filter by employee name/username/phone and by status, and a background job (node-cron) must archive+delete any task that has been status='done' for more than 7 days - saving a lightweight summary to an archived_tasks table first, and never touching unread/read tasks regardless of age. Follow build_steps in order, testing after each one. Start with step 1."
+  }
+}
