@@ -5,7 +5,7 @@ const path = require('path');
 const cron = require('node-cron');
 const db = require('./db');
 const { archiveOldDoneTasks } = require('./archive');
-require('./bot');
+const bot = require('./bot');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +13,12 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Telegram webhook endpoint
+app.post('/bot', (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -56,7 +62,16 @@ app.get('/api/tasks', requireAuth, (req, res) => {
   `;
   const params = [];
 
-  if (status) {
+  // If status is 'all' or not provided, exclude done tasks
+  // If status is 'done', only show done tasks
+  // Otherwise, show only the specified status
+  if (!status || status === 'all') {
+    query += ' AND t.status != ?';
+    params.push('done');
+  } else if (status === 'done') {
+    query += ' AND t.status = ?';
+    params.push('done');
+  } else {
     query += ' AND t.status = ?';
     params.push(status);
   }
@@ -184,6 +199,68 @@ app.get('/api/tasks/:id', requireAuth, (req, res) => {
       }
     });
   } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Delete task
+app.delete('/api/tasks/:id', requireAuth, (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Get task photos to delete files
+    const photos = db.prepare('SELECT file_path FROM task_photos WHERE task_id = ?').all(id);
+    
+    // Get task voices to delete files
+    const voices = db.prepare('SELECT file_path FROM task_voices WHERE task_id = ?').all(id);
+    
+    // Delete photo files
+    photos.forEach(photo => {
+      const filePath = path.join(__dirname, photo.file_path);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log('Deleted photo:', filePath);
+        } else {
+          console.log('Photo file not found, skipping:', filePath);
+        }
+      } catch (err) {
+        console.error('Error deleting photo file:', err);
+      }
+    });
+    
+    // Delete voice files
+    voices.forEach(voice => {
+      const filePath = path.join(__dirname, voice.file_path);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log('Deleted voice:', filePath);
+        } else {
+          console.log('Voice file not found, skipping:', filePath);
+        }
+      } catch (err) {
+        console.error('Error deleting voice file:', err);
+      }
+    });
+    
+    // Delete related records first (photos and voices)
+    db.prepare('DELETE FROM task_photos WHERE task_id = ?').run(id);
+    db.prepare('DELETE FROM task_voices WHERE task_id = ?').run(id);
+    
+    // Delete task
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+    
+    // Clear employee's open_task_id if this was their open task
+    db.prepare('UPDATE employees SET open_task_id = NULL WHERE open_task_id = ?').run(id);
+    
+    console.log('Task deleted successfully:', id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting task:', err);
     res.json({ success: false, error: err.message });
   }
 });

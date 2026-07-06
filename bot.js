@@ -13,7 +13,16 @@ if (!token) {
   process.exit(1);
 }
 
-const bot = new TelegramBot(token, { polling: true });
+// Use webhook if WEBHOOK_URL is set, otherwise use polling
+const webhookUrl = process.env.WEBHOOK_URL;
+const bot = new TelegramBot(token, webhookUrl ? { polling: false } : { polling: true });
+
+if (webhookUrl) {
+  console.log('Using webhook mode:', webhookUrl);
+  bot.setWebHook(webhookUrl);
+} else {
+  console.log('Using polling mode');
+}
 
 // Main menu reply keyboard (2 columns x 2 rows)
 const mainMenuKeyboard = {
@@ -259,7 +268,7 @@ bot.on('callback_query', async (query) => {
     // Remove inline keyboard from the message
     try {
       if (query.message && query.message.chat && query.message.message_id) {
-        bot.editMessageReplyMarkup({
+        await bot.editMessageReplyMarkup({
           chat_id: query.message.chat.id,
           message_id: query.message.message_id,
           reply_markup: { inline_keyboard: [] }
@@ -267,6 +276,7 @@ bot.on('callback_query', async (query) => {
       }
     } catch (e) {
       // Ignore if message was already deleted or modified
+      console.log('Could not edit message reply markup:', e.message);
     }
     
     // Send success message with main menu
@@ -279,7 +289,7 @@ bot.on('callback_query', async (query) => {
     // Remove inline keyboard from the message
     try {
       if (query.message && query.message.chat && query.message.message_id) {
-        bot.editMessageReplyMarkup({
+        await bot.editMessageReplyMarkup({
           chat_id: query.message.chat.id,
           message_id: query.message.message_id,
           reply_markup: { inline_keyboard: [] }
@@ -287,6 +297,7 @@ bot.on('callback_query', async (query) => {
       }
     } catch (e) {
       // Ignore if message was already deleted or modified
+      console.log('Could not edit message reply markup:', e.message);
     }
     
     // Send cancel message
@@ -383,6 +394,13 @@ bot.on('photo', async (msg) => {
     const photo = msg.photo[msg.photo.length - 1];
     const fileId = photo.file_id;
     
+    // Check if this photo was already processed globally (within last 5 minutes)
+    const recentPhoto = db.prepare('SELECT * FROM task_photos WHERE file_id = ? AND datetime(created_at) > datetime(\'now\', \'-5 minutes\')').get(fileId);
+    if (recentPhoto) {
+      console.log(`Photo ${fileId} already processed recently, skipping`);
+      return; // Skip duplicate globally
+    }
+    
     let taskId = employee.open_task_id;
 
     // Auto-create task if none open
@@ -396,28 +414,49 @@ bot.on('photo', async (msg) => {
       db.prepare('UPDATE employees SET open_task_id = ? WHERE id = ?').run(taskId, employee.id);
     }
 
-    // Check if this photo was already processed for THIS task
+    // Double check for this specific task
     const existingPhoto = db.prepare('SELECT * FROM task_photos WHERE task_id = ? AND file_id = ?').get(taskId, fileId);
     if (existingPhoto) {
       return; // Skip duplicate for this task
     }
     
+    // Verify task still exists (might have been cleaned up)
+    const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+    if (!taskExists) {
+      console.log(`Task ${taskId} no longer exists, clearing employee open_task_id`);
+      db.prepare('UPDATE employees SET open_task_id = NULL WHERE id = ?').run(employee.id);
+      // Create new task
+      const stmt = db.prepare(`
+        INSERT INTO tasks (employee_id, status, created_at, updated_at)
+        VALUES (?, 'unread', datetime(\'now\'), datetime(\'now\'))
+      `);
+      const result = stmt.run(employee.id);
+      taskId = result.lastInsertRowid;
+      db.prepare('UPDATE employees SET open_task_id = ? WHERE id = ?').run(taskId, employee.id);
+    }
+    
     const fileLink = await bot.getFileLink(fileId);
     const timestamp = Date.now();
     const photoPath = `uploads/photos/${timestamp}.jpg`;
+    const tempPath = `uploads/photos/${timestamp}_temp.jpg`;
     const fullPath = path.join(__dirname, photoPath);
+    const fullTempPath = path.join(__dirname, tempPath);
 
     await downloadFile(fileLink, fullPath);
 
-    // Compress photo using sharp
+    // Compress photo using sharp - use temp file then replace
     await sharp(fullPath)
       .resize(1200, null, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 80 })
-      .toFile(fullPath.replace('.jpg', '_compressed.jpg'));
+      .toFile(fullTempPath);
 
     // Replace original with compressed version
-    fs.unlinkSync(fullPath);
-    fs.renameSync(fullPath.replace('.jpg', '_compressed.jpg'), fullPath);
+    try {
+      fs.unlinkSync(fullPath);
+    } catch (e) {
+      // Ignore if file doesn't exist
+    }
+    fs.renameSync(fullTempPath, fullPath);
 
     // Insert photo with file_id to prevent duplicates
     db.prepare('INSERT INTO task_photos (task_id, file_path, file_id, created_at) VALUES (?, ?, ?, datetime(\'now\'))').run(taskId, photoPath, fileId);
@@ -453,30 +492,15 @@ bot.on('voice', async (msg) => {
     // Show typing indicator
     bot.sendChatAction(chatId, 'record_voice');
     
-    const fileLink = await bot.getFileLink(msg.voice.file_id);
-    const timestamp = Date.now();
-    const voicePath = `uploads/voice/${timestamp}.ogg`;
-    const fullPath = path.join(__dirname, voicePath);
-    const duration = msg.voice.duration || null;
-
-    await downloadFile(fileLink, fullPath);
-
-    // Compress voice using ffmpeg
-    const compressedPath = fullPath.replace('.ogg', '_compressed.ogg');
-    await new Promise((resolve, reject) => {
-      ffmpeg(fullPath)
-        .audioBitrate('32k')
-        .audioChannels(1)
-        .toFormat('ogg')
-        .on('end', resolve)
-        .on('error', reject)
-        .save(compressedPath);
-    });
-
-    // Replace original with compressed version
-    fs.unlinkSync(fullPath);
-    fs.renameSync(compressedPath, fullPath);
-
+    const fileId = msg.voice.file_id;
+    
+    // Check if this voice was already processed globally (within last 5 minutes)
+    const recentVoice = db.prepare('SELECT * FROM task_voices WHERE file_path LIKE ? AND datetime(created_at) > datetime(\'now\', \'-5 minutes\')').get(`%${fileId}%`);
+    if (recentVoice) {
+      console.log(`Voice ${fileId} already processed recently, skipping`);
+      return; // Skip duplicate globally
+    }
+    
     let taskId = employee.open_task_id;
 
     // Auto-create task if none open
@@ -490,7 +514,58 @@ bot.on('voice', async (msg) => {
       db.prepare('UPDATE employees SET open_task_id = ? WHERE id = ?').run(taskId, employee.id);
     }
 
-    // Insert voice
+    // Double check for this specific task
+    const existingVoice = db.prepare('SELECT * FROM task_voices WHERE task_id = ? AND file_path LIKE ?').get(taskId, `%${fileId}%`);
+    if (existingVoice) {
+      console.log(`Voice ${fileId} already processed for task ${taskId}, skipping`);
+      return; // Skip duplicate for this task
+    }
+    
+    // Verify task still exists (might have been cleaned up)
+    const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+    if (!taskExists) {
+      console.log(`Task ${taskId} no longer exists, clearing employee open_task_id`);
+      db.prepare('UPDATE employees SET open_task_id = NULL WHERE id = ?').run(employee.id);
+      // Create new task
+      const stmt = db.prepare(`
+        INSERT INTO tasks (employee_id, status, created_at, updated_at)
+        VALUES (?, 'unread', datetime(\'now\'), datetime(\'now\'))
+      `);
+      const result = stmt.run(employee.id);
+      taskId = result.lastInsertRowid;
+      db.prepare('UPDATE employees SET open_task_id = ? WHERE id = ?').run(taskId, employee.id);
+    }
+    
+    const fileLink = await bot.getFileLink(fileId);
+    const timestamp = Date.now();
+    const voicePath = `uploads/voice/${timestamp}_${fileId}.ogg`;
+    const tempPath = `uploads/voice/${timestamp}_${fileId}_temp.ogg`;
+    const fullPath = path.join(__dirname, voicePath);
+    const fullTempPath = path.join(__dirname, tempPath);
+    const duration = msg.voice.duration || null;
+
+    await downloadFile(fileLink, fullPath);
+
+    // Compress voice using ffmpeg - use temp file then replace
+    await new Promise((resolve, reject) => {
+      ffmpeg(fullPath)
+        .audioBitrate('32k')
+        .audioChannels(1)
+        .toFormat('ogg')
+        .on('end', resolve)
+        .on('error', reject)
+        .save(fullTempPath);
+    });
+
+    // Replace original with compressed version
+    try {
+      fs.unlinkSync(fullPath);
+    } catch (e) {
+      // Ignore if file doesn't exist
+    }
+    fs.renameSync(fullTempPath, fullPath);
+
+    // Insert voice with file_id for duplicate prevention
     db.prepare('INSERT INTO task_voices (task_id, file_path, duration_seconds, created_at) VALUES (?, ?, ?, datetime(\'now\'))').run(taskId, voicePath, duration);
     db.prepare('UPDATE tasks SET updated_at = datetime(\'now\') WHERE id = ?').run(taskId);
 
@@ -501,5 +576,36 @@ bot.on('voice', async (msg) => {
     bot.sendMessage(chatId, 'حدث خطأ في معالجة الرسالة الصوتية. يرجى المحاولة مرة أخرى.');
   }
 });
+
+// Auto-delete empty tasks older than 5 minutes
+function cleanupEmptyTasks() {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  
+  // Find tasks without files that are older than 5 minutes
+  const emptyTasks = db.prepare(`
+    SELECT t.id, e.open_task_id
+    FROM tasks t
+    LEFT JOIN employees e ON e.open_task_id = t.id
+    WHERE t.status = 'unread'
+    AND t.created_at < ?
+    AND (SELECT COUNT(*) FROM task_photos WHERE task_id = t.id) = 0
+    AND (SELECT COUNT(*) FROM task_voices WHERE task_id = t.id) = 0
+  `).all(fiveMinutesAgo);
+
+  for (const task of emptyTasks) {
+    // Delete the task
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(task.id);
+    
+    // Clear open_task_id if this was the employee's open task
+    if (task.open_task_id === task.id) {
+      db.prepare('UPDATE employees SET open_task_id = NULL WHERE open_task_id = ?').run(task.id);
+    }
+    
+    console.log(`Deleted empty task ${task.id} (older than 5 minutes without files)`);
+  }
+}
+
+// Run cleanup every minute
+setInterval(cleanupEmptyTasks, 60 * 1000);
 
 console.log('Telegram bot started...');

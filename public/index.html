@@ -3,127 +3,226 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CHAOS ERP Dashboard v2</title>
+  <title>CHAOS ERP Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+    .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .status-pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse-slow { animation: pulseSlow 3s ease-in-out infinite; }
+    @keyframes pulseSlow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    .animate-bounce { animation: bounce 1s infinite; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    .notification-ring { animation: ring 0.5s ease-out; }
+    @keyframes ring { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+    input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <div id="login-screen" class="min-h-screen flex items-center justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-md w-96">
-      <h1 class="text-2xl font-bold mb-6 text-center">CHAOS ERP Dashboard v2</h1>
-      <form id="login-form" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input type="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+<body class="bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 min-h-screen">
+  <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass rounded-2xl shadow-2xl w-full max-w-md p-8 animate-fade-in">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full gradient-bg mb-4 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
         </div>
-        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition">Login</button>
-        <p id="login-error" class="text-red-500 text-sm hidden">Invalid password</p>
+        <h1 class="font-display text-3xl font-bold text-gray-800 mb-2">CHAOS ERP</h1>
+        <p class="text-gray-500 text-sm">Field Report Management System</p>
+      </div>
+      <form id="login-form" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+          <input type="password" id="password" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-purple-500 transition-all duration-200" placeholder="Enter your password" required>
+        </div>
+        <button type="submit" class="w-full gradient-bg text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">Sign In</button>
+        <p id="login-error" class="text-red-500 text-sm text-center hidden">Invalid password</p>
       </form>
     </div>
   </div>
 
   <div id="dashboard" class="hidden">
-    <div class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 py-4">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold">CHAOS ERP Dashboard v2</h1>
-          <div class="flex items-center gap-4">
-            <button onclick="filterUnread()" class="relative p-2 rounded-md hover:bg-gray-100 transition">
-              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="glass sticky top-0 z-50 shadow-2xl border-b border-white/30 bg-gradient-to-r from-purple-50/90 via-white/95 to-blue-50/90 backdrop-blur-xl">
+      <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="gradient-bg p-2.5 rounded-2xl shadow-lg shadow-purple-300/50 flex-shrink-0 animate-pulse-slow">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h1 class="font-display text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">CHAOS ERP</h1>
+              <p class="text-xs text-gray-500 hidden sm:block">Field Report Management</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <button onclick="filterUnread()" class="relative p-2.5 rounded-2xl bg-gradient-to-r from-purple-100 to-blue-100 hover:from-purple-200 hover:to-blue-200 transition-all duration-300 group flex-shrink-0 shadow-md hover:shadow-lg transform hover:scale-105">
+              <svg class="w-5 h-5 text-purple-600 group-hover:text-purple-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
               </svg>
-              <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+              <span id="notification-badge" class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden shadow-lg animate-bounce">0</span>
             </button>
-            <div class="flex gap-2">
-              <button onclick="showTab('tasks')" class="tab-btn px-4 py-2 rounded-md bg-blue-500 text-white" data-tab="tasks">Tasks</button>
-              <button onclick="showTab('archived')" class="tab-btn px-4 py-2 rounded-md bg-gray-200 text-gray-700" data-tab="archived">Archived</button>
+            
+            <!-- Language Selector -->
+            <select id="language-selector" onchange="setLanguage(this.value)" class="px-2 sm:px-3 py-2 rounded-2xl border-2 border-purple-200 bg-white/80 text-xs sm:text-sm font-medium focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-300 flex-shrink-0 hover:border-purple-300">
+              <option value="en">🇬🇧 EN</option>
+              <option value="fr">🇫🇷 FR</option>
+              <option value="ar">🇩🇿 AR</option>
+            </select>
+            
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="showTab('tasks')" class="tab-btn px-3 sm:px-4 py-2 rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 gradient-bg text-white shadow-lg shadow-purple-300/50 hover:shadow-xl hover:shadow-purple-400/50 transform hover:-translate-y-0.5" data-tab="tasks">Tasks</button>
+              <button onclick="showTab('archived')" class="tab-btn px-3 sm:px-4 py-2 rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 bg-white/80 text-gray-700 hover:bg-white border-2 border-purple-200 hover:border-purple-300" data-tab="archived">Archived</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
       <!-- Tasks Tab -->
       <div id="tasks-tab">
         <!-- Search and Filter Toolbar -->
-        <div class="bg-white rounded-lg shadow p-4 mb-6">
-          <div class="flex flex-wrap gap-4 items-center">
-            <div class="flex-1 min-w-[200px]">
+        <div class="glass rounded-2xl shadow-lg p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white/80 to-purple-50/30 backdrop-blur-xl border border-white/50">
+          <div class="flex flex-col gap-3 sm:gap-4">
+            <!-- Search Bar -->
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 smpl-4 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
               <input type="text" id="search-input" placeholder="Search by name, username, or phone..." 
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 bg-white/70 border border-purple-200 rounded-xl sm:rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 text-gray-700 placeholder-gray-400 shadow-sm text-sm sm:text-base"
                 oninput="debouncedSearch()">
             </div>
-            <div class="min-w-[200px]">
-              <select id="employee-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onchange="refreshTasks()">
-                <option value="">All Employees</option>
-              </select>
+            
+            <!-- Filters Row -->
+            <div class="flex flex-col gap-3 sm:gap-4">
+              <!-- Employee Filter -->
+              <div class="relative w-full">
+                <div class="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                  <svg class="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                </div>
+                <select id="employee-filter" class="w-full pl-10 sm:pl-12 pr-8 sm:pr-10 py-2.5 sm:py-3.5 bg-white/70 border border-purple-200 rounded-xl sm:rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 text-gray-700 appearance-none cursor-pointer shadow-sm text-sm sm:text-base"
+                  onchange="refreshTasks()">
+                  <option value="">All Employees</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center pointer-events-none">
+                  <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </div>
+              
+              <!-- Date Range -->
+              <div class="flex flex-col sm:flex-row gap-3">
+                <div class="relative w-full">
+                  <div class="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <input type="date" id="date-from" class="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 bg-white/70 border border-purple-200 rounded-xl sm:rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 text-gray-700 shadow-sm text-sm sm:text-base"
+                    onchange="refreshTasks()">
+                </div>
+                <div class="relative w-full">
+                  <div class="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <input type="date" id="date-to" class="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 bg-white/70 border border-purple-200 rounded-xl sm:rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 text-gray-700 shadow-sm text-sm sm:text-base"
+                    onchange="refreshTasks()">
+                </div>
+              </div>
+              
+              <!-- Status Filters -->
+              <div class="flex flex-wrap gap-2">
+                <button onclick="setStatusFilter('all')" class="status-btn px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 gradient-bg text-white shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5" data-status="all">All</button>
+                <button onclick="setStatusFilter('unread')" class="status-btn px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 bg-white/70 text-gray-600 border border-purple-200 hover:bg-gradient-to-r hover:from-amber-400 hover:to-orange-400 hover:text-white hover:border-transparent transform hover:-translate-y-0.5" data-status="unread">Pending</button>
+                <button onclick="setStatusFilter('received')" class="status-btn px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 bg-white/70 text-gray-600 border border-purple-200 hover:bg-gradient-to-r hover:from-blue-400 hover:to-cyan-400 hover:text-white hover:border-transparent transform hover:-translate-y-0.5" data-status="received">Received</button>
+                <button onclick="setStatusFilter('read')" class="status-btn px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 bg-white/70 text-gray-600 border border-purple-200 hover:bg-gradient-to-r hover:from-purple-400 hover:to-pink-400 hover:text-white hover:border-transparent transform hover:-translate-y-0.5" data-status="read">Reviewing</button>
+                <button onclick="setStatusFilter('done')" class="status-btn px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-semibold text-xs sm:text-sm transition-all duration-300 bg-white/70 text-gray-600 border border-purple-200 hover:bg-gradient-to-r hover:from-emerald-400 hover:to-teal-400 hover:text-white hover:border-transparent transform hover:-translate-y-0.5" data-status="done">Done</button>
+              </div>
+              
+              <!-- Refresh Button -->
+              <button onclick="refreshTasks()" class="w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm sm:text-base">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+              </button>
             </div>
-            <div class="min-w-[150px]">
-              <input type="date" id="date-from" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onchange="refreshTasks()">
-            </div>
-            <div class="min-w-[150px]">
-              <input type="date" id="date-to" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onchange="refreshTasks()">
-            </div>
-            <div class="flex gap-2">
-              <button onclick="setStatusFilter('all')" class="status-btn px-3 py-2 rounded-md bg-blue-500 text-white text-sm" data-status="all">All</button>
-              <button onclick="setStatusFilter('unread')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="unread">Unread</button>
-              <button onclick="setStatusFilter('received')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="received">Received</button>
-              <button onclick="setStatusFilter('read')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="read">Read</button>
-              <button onclick="setStatusFilter('done')" class="status-btn px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm" data-status="done">Done</button>
-            </div>
-            <button onclick="refreshTasks()" class="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600">Refresh</button>
           </div>
-          <p id="result-count" class="text-sm text-gray-500 mt-2"></p>
+          <p id="result-count" class="text-xs sm:text-sm text-gray-500 mt-3 sm:mt-4 font-medium"></p>
         </div>
 
-        <div id="tasks-list" class="space-y-4">
-          <p class="text-gray-500">Loading tasks...</p>
+        <div id="tasks-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <p class="text-gray-500 col-span-full text-center py-6 sm:py-8 text-sm sm:text-base">Loading tasks...</p>
         </div>
 
         <!-- Pagination -->
-        <div id="pagination" class="flex items-center justify-center gap-2 mt-6">
+        <div id="pagination" class="flex items-center justify-center gap-1 sm:gap-2 mt-6 sm:mt-8 flex-wrap">
           <!-- Pagination buttons will be rendered here -->
         </div>
       </div>
 
       <!-- Archived Tab -->
       <div id="archived-tab" class="hidden">
-        <div class="bg-white rounded-lg shadow p-4 mb-6">
-          <button onclick="refreshArchived()" class="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600">Refresh Archived</button>
+        <div class="glass rounded-2xl shadow-lg p-3 sm:p-4 md:p-6 mb-4 sm:mb-6">
+          <button onclick="refreshArchived()" class="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all duration-200 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm sm:text-base">Refresh Archived</button>
         </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full bg-white rounded-lg shadow">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Employee</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Note</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Accountant Note</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Photos</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Voices</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Done Date</th>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Archived Date</th>
-              </tr>
-            </thead>
-            <tbody id="archived-list" class="divide-y divide-gray-200">
-              <tr><td colspan="8" class="px-4 py-3 text-gray-500">Loading archived tasks...</td></tr>
-            </tbody>
-          </table>
+        <div class="glass rounded-2xl shadow-lg overflow-hidden">
+          <div class="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+            <table class="min-w-full">
+              <thead class="bg-gradient-to-r from-purple-50 to-blue-50">
+                <tr>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Employee</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Note</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden sm:table-cell">Accountant Note</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden md:table-cell">Photos</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden md:table-cell">Voices</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden lg:table-cell">Done Date</th>
+                  <th class="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden lg:table-cell">Archived Date</th>
+                </tr>
+              </thead>
+              <tbody id="archived-list" class="divide-y divide-gray-100">
+                <tr><td colspan="8" class="px-3 sm:px-4 md:px-6 py-6 sm:py-8 text-gray-500 text-center text-sm sm:text-base">Loading archived tasks...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Task Detail Modal -->
-  <div id="detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-      <div class="p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Task Details</h2>
-          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+  <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+    <div class="glass rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-fade-in">
+      <div class="p-4 sm:p-6 md:p-8">
+        <div class="flex justify-between items-center mb-4 sm:mb-6">
+          <h2 class="font-display text-xl sm:text-2xl font-bold text-gray-800">Task Details</h2>
+          <button onclick="closeModal()" class="p-2 rounded-xl hover:bg-white/50 transition-all duration-200">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
         </div>
         <div id="detail-content"></div>
       </div>
@@ -131,11 +230,148 @@
   </div>
 
   <!-- Photo Lightbox -->
-  <div id="lightbox" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onclick="closeLightbox()">
-    <img id="lightbox-img" class="max-w-[90vw] max-h-[90vh] object-contain">
+  <div id="lightbox" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" onclick="closeLightbox()">
+    <img id="lightbox-img" class="max-w-[95vw] max-h-[95vh] object-contain rounded-xl shadow-2xl">
   </div>
 
   <script>
+    // Translations
+    const translations = {
+      en: {
+        title: 'CHAOS ERP',
+        subtitle: 'Field Report Management System',
+        password: 'Password',
+        enterPassword: 'Enter your password',
+        signIn: 'Sign In',
+        invalidPassword: 'Invalid password',
+        tasks: 'Tasks',
+        archived: 'Archived',
+        searchPlaceholder: 'Search by name, username, or phone...',
+        allEmployees: 'All Employees',
+        all: 'All',
+        pending: 'Pending',
+        received: 'Received',
+        reviewing: 'Reviewing',
+        done: 'Done',
+        refresh: 'Refresh',
+        refreshArchived: 'Refresh Archived',
+        noTasks: 'No tasks found.',
+        loadingTasks: 'Loading tasks...',
+        noArchived: 'No archived tasks found.',
+        loadingArchived: 'Loading archived tasks...',
+        taskDetails: 'Task Details',
+        employee: 'Employee',
+        phone: 'Phone',
+        status: 'Status',
+        created: 'Created',
+        photos: 'Photos',
+        voiceNotes: 'Voice Notes',
+        employeeNote: 'Employee Note',
+        accountantNote: 'Accountant Note',
+        amount: 'Amount (Dzd)',
+        saveChanges: 'Save Changes',
+        cancel: 'Cancel',
+        savedSuccessfully: 'Saved successfully',
+        errorSaving: 'Error saving: ',
+        previous: 'Previous',
+        next: 'Next',
+        tasksFound: 'tasks found',
+        unread: 'unread',
+        received: 'received',
+        read: 'read',
+        done: 'done'
+      },
+      fr: {
+        title: 'CHAOS ERP',
+        subtitle: 'Système de Gestion de Rapports de Terrain',
+        password: 'Mot de passe',
+        enterPassword: 'Entrez votre mot de passe',
+        signIn: 'Connexion',
+        invalidPassword: 'Mot de passe invalide',
+        tasks: 'Tâches',
+        archived: 'Archivées',
+        searchPlaceholder: 'Rechercher par nom, nom d\'utilisateur ou téléphone...',
+        allEmployees: 'Tous les employés',
+        all: 'Tous',
+        pending: 'En attente',
+        received: 'Reçu',
+        reviewing: 'En cours',
+        done: 'Terminé',
+        refresh: 'Actualiser',
+        refreshArchived: 'Actualiser les archivées',
+        noTasks: 'Aucune tâche trouvée.',
+        loadingTasks: 'Chargement des tâches...',
+        noArchived: 'Aucune tâche archivée trouvée.',
+        loadingArchived: 'Chargement des tâches archivées...',
+        taskDetails: 'Détails de la tâche',
+        employee: 'Employé',
+        phone: 'Téléphone',
+        status: 'Statut',
+        created: 'Créé',
+        photos: 'Photos',
+        voiceNotes: 'Notes vocales',
+        employeeNote: 'Note de l\'employé',
+        accountantNote: 'Note du comptable',
+        amount: 'Montant (Dzd)',
+        saveChanges: 'Enregistrer',
+        cancel: 'Annuler',
+        savedSuccessfully: 'Enregistré avec succès',
+        errorSaving: 'Erreur lors de l\'enregistrement: ',
+        previous: 'Précédent',
+        next: 'Suivant',
+        tasksFound: 'tâches trouvées',
+        unread: 'non lu',
+        received: 'reçu',
+        read: 'lu',
+        done: 'terminé'
+      },
+      ar: {
+        title: 'CHAOS ERP',
+        subtitle: 'نظام إدارة تقارير الميدان',
+        password: 'كلمة المرور',
+        enterPassword: 'أدخل كلمة المرور',
+        signIn: 'تسجيل الدخول',
+        invalidPassword: 'كلمة المرور غير صحيحة',
+        tasks: 'المهام',
+        archived: 'الأرشيف',
+        searchPlaceholder: 'البحث بالاسم، اسم المستخدم، أو الهاتف...',
+        allEmployees: 'جميع الموظفين',
+        all: 'الكل',
+        pending: 'قيد الانتظار',
+        received: 'مستلم',
+        reviewing: 'قيد المراجعة',
+        done: 'مكتمل',
+        refresh: 'تحديث',
+        refreshArchived: 'تحديث الأرشيف',
+        noTasks: 'لم يتم العثور على مهام.',
+        loadingTasks: 'جاري تحميل المهام...',
+        noArchived: 'لم يتم العثور على مهام مؤرشفة.',
+        loadingArchived: 'جاري تحميل المهام المؤرشفة...',
+        taskDetails: 'تفاصيل المهمة',
+        employee: 'الموظف',
+        phone: 'الهاتف',
+        status: 'الحالة',
+        created: 'تم الإنشاء',
+        photos: 'الصور',
+        voiceNotes: 'الملاحظات الصوتية',
+        employeeNote: 'ملاحظة الموظف',
+        accountantNote: 'ملاحظة المحاسب',
+        amount: 'المبلغ (دج)',
+        saveChanges: 'حفظ التغييرات',
+        cancel: 'إلغاء',
+        savedSuccessfully: 'تم الحفظ بنجاح',
+        errorSaving: 'خطأ في الحفظ: ',
+        previous: 'السابق',
+        next: 'التالي',
+        tasksFound: 'مهام موجودة',
+        unread: 'غير مقروء',
+        received: 'مستلم',
+        read: 'مقروء',
+        done: 'مكتمل'
+      }
+    };
+
+    let currentLang = localStorage.getItem('lang') || 'en';
     let currentStatusFilter = 'all';
     let currentSearch = '';
     let currentEmployeeFilter = '';
@@ -143,9 +379,69 @@
     let employees = [];
     let seenTaskIds = new Set();
     let currentPage = 1;
-    let itemsPerPage = 10;
+    let itemsPerPage = 15;
     let totalItems = 0;
     let totalPages = 1;
+
+    // Get translation
+    function t(key) {
+      return translations[currentLang][key] || translations['en'][key] || key;
+    }
+
+    // Set language
+    function setLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('lang', lang);
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      updateUIText();
+    }
+
+    // Update all UI text
+    function updateUIText() {
+      // Update login screen
+      document.querySelector('#login-screen h1').textContent = t('title');
+      document.querySelector('#login-screen p').textContent = t('subtitle');
+      document.querySelector('#login-screen label').textContent = t('password');
+      document.querySelector('#login-screen input').placeholder = t('enterPassword');
+      document.querySelector('#login-screen button').textContent = t('signIn');
+      document.querySelector('#login-screen #login-error').textContent = t('invalidPassword');
+
+      // Update header
+      document.querySelector('#dashboard h1').textContent = t('title');
+      document.querySelector('[data-tab="tasks"]').textContent = t('tasks');
+      document.querySelector('[data-tab="archived"]').textContent = t('archived');
+
+      // Update filters
+      document.querySelector('#search-input').placeholder = t('searchPlaceholder');
+      document.querySelector('#employee-filter option').textContent = t('allEmployees');
+      document.querySelector('[data-status="all"]').textContent = t('all');
+      document.querySelector('[data-status="unread"]').textContent = t('pending');
+      document.querySelector('[data-status="received"]').textContent = t('received');
+      document.querySelector('[data-status="read"]').textContent = t('reviewing');
+      document.querySelector('[data-status="done"]').textContent = t('done');
+      // Update refresh button text (keep the icon)
+      const refreshBtn = document.querySelector('button[onclick="refreshTasks()"]');
+      if (refreshBtn) {
+        refreshBtn.innerHTML = `
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          ${t('refresh')}
+        `;
+      }
+
+      // Update archived tab
+      document.querySelector('#archived-tab button').textContent = t('refreshArchived');
+
+      // Re-render tasks and pagination to update text
+      if (!document.getElementById('tasks-tab').classList.contains('hidden')) {
+        refreshTasks();
+      }
+      if (!document.getElementById('archived-tab').classList.contains('hidden')) {
+        refreshArchived();
+      }
+    }
 
     // Request notification permission and init
     function requestNotificationPermission() {
@@ -154,25 +450,35 @@
       }
     }
 
-    // Play notification sound using Web Audio API
+    // Play notification sound using Web Audio API - improved with multiple tones
     function playNotificationSound() {
       try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        // Create multiple oscillators for a richer sound
+        const frequencies = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (C major chord)
         
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.3;
+        frequencies.forEach((freq, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + index * 0.05);
+          oscillator.type = 'sine';
+          
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime + index * 0.05);
+          gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + index * 0.05 + 0.02);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + index * 0.05 + 0.3);
+          
+          oscillator.start(audioContext.currentTime + index * 0.05);
+          oscillator.stop(audioContext.currentTime + index * 0.05 + 0.35);
+        });
         
-        oscillator.start();
         setTimeout(() => {
-          oscillator.stop();
           audioContext.close();
-        }, 200);
+        }, 500);
       } catch (e) {
         console.log('Audio not supported');
       }
@@ -203,7 +509,7 @@
       updateNotificationBadge(tasks);
     }
 
-    // Update notification badge count
+    // Update notification badge count - improved accuracy with animation
     function updateNotificationBadge(tasks) {
       const unreadCount = tasks.filter(t => t.status === 'unread' || t.status === 'received').length;
       const badge = document.getElementById('notification-badge');
@@ -211,8 +517,15 @@
       if (unreadCount > 0) {
         badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
         badge.classList.remove('hidden');
+        badge.classList.add('status-pulse');
+        
+        // Add ring animation when badge appears or changes
+        badge.classList.remove('notification-ring');
+        void badge.offsetWidth; // Trigger reflow
+        badge.classList.add('notification-ring');
       } else {
         badge.classList.add('hidden');
+        badge.classList.remove('status-pulse', 'notification-ring');
       }
     }
 
@@ -246,19 +559,19 @@
       let html = '';
       
       // Previous button
-      html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>`;
+      html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-3 sm:px-4 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 bg-white/50 text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">${t('previous')}</button>`;
       
       // Page numbers
       for (let i = 1; i <= totalPages; i++) {
         if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-          html += `<button onclick="goToPage(${i})" class="px-3 py-1 rounded-md ${i === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">${i}</button>`;
+          html += `<button onclick="goToPage(${i})" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 ${i === currentPage ? 'gradient-bg text-white shadow-md' : 'bg-white/50 text-gray-700 hover:bg-white'}">${i}</button>`;
         } else if (i === currentPage - 2 || i === currentPage + 2) {
-          html += `<span class="px-2">...</span>`;
+          html += `<span class="px-1 sm:px-2 text-gray-400 text-xs sm:text-sm">...</span>`;
         }
       }
       
       // Next button
-      html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>`;
+      html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 sm:px-4 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 bg-white/50 text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">${t('next')}</button>`;
       
       container.innerHTML = html;
     }
@@ -324,11 +637,11 @@
     function showTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(btn => {
         if (btn.dataset.tab === tab) {
-          btn.classList.remove('bg-gray-200', 'text-gray-700');
-          btn.classList.add('bg-blue-500', 'text-white');
+          btn.classList.remove('bg-white/50', 'text-gray-700', 'hover:bg-white');
+          btn.classList.add('gradient-bg', 'text-white', 'shadow-md');
         } else {
-          btn.classList.remove('bg-blue-500', 'text-white');
-          btn.classList.add('bg-gray-200', 'text-gray-700');
+          btn.classList.remove('gradient-bg', 'text-white', 'shadow-md');
+          btn.classList.add('bg-white/50', 'text-gray-700', 'hover:bg-white');
         }
       });
 
@@ -354,13 +667,14 @@
       currentStatusFilter = status;
       document.querySelectorAll('.status-btn').forEach(btn => {
         if (btn.dataset.status === status) {
-          btn.classList.remove('bg-gray-200', 'text-gray-700');
-          btn.classList.add('bg-blue-500', 'text-white');
+          btn.classList.remove('bg-white/70', 'text-gray-600', 'border', 'border-purple-200');
+          btn.classList.add('gradient-bg', 'text-white', 'shadow-lg', 'shadow-purple-200');
         } else {
-          btn.classList.remove('bg-blue-500', 'text-white');
-          btn.classList.add('bg-gray-200', 'text-gray-700');
+          btn.classList.remove('gradient-bg', 'text-white', 'shadow-lg', 'shadow-purple-200');
+          btn.classList.add('bg-white/70', 'text-gray-600', 'border', 'border-purple-200');
         }
       });
+      currentPage = 1;
       refreshTasks();
     }
 
@@ -394,7 +708,7 @@
           renderPagination();
         }
         
-        document.getElementById('result-count').textContent = `${totalItems} tasks found`;
+        document.getElementById('result-count').textContent = `${totalItems} ${t('tasksFound')}`;
         
         // Check for new unread/received tasks and notify
         checkForNewTasks(data.data);
@@ -406,37 +720,69 @@
       const container = document.getElementById('tasks-list');
       
       if (tasks.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">No tasks found.</p>';
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <p class="text-gray-500">${t('noTasks')}</p>
+          </div>
+        `;
         return;
       }
 
-      container.innerHTML = tasks.map(task => {
-        const statusColors = {
-          unread: 'bg-red-100 text-red-800',
-          received: 'bg-blue-100 text-blue-800',
-          read: 'bg-orange-100 text-orange-800',
-          done: 'bg-green-100 text-green-800'
-        };
-        const statusColor = statusColors[task.status] || 'bg-gray-100 text-gray-800';
+      const statusConfig = {
+        unread: { bg: 'bg-gradient-to-r from-amber-400 to-orange-400', text: t('pending'), icon: '⏳' },
+        received: { bg: 'bg-gradient-to-r from-blue-400 to-cyan-400', text: t('received'), icon: '📥' },
+        read: { bg: 'bg-gradient-to-r from-purple-400 to-pink-400', text: t('reviewing'), icon: '👀' },
+        done: { bg: 'bg-gradient-to-r from-emerald-400 to-teal-400', text: t('done'), icon: '✅' }
+      };
+
+      container.innerHTML = tasks.map((task, index) => {
+        const status = statusConfig[task.status] || statusConfig.unread;
+        const taskDate = new Date(task.created_at);
+        const dateStr = taskDate.toLocaleDateString(currentLang === 'ar' ? 'ar-DZ' : currentLang === 'fr' ? 'fr-FR' : 'en-US');
+        const timeStr = taskDate.toLocaleTimeString(currentLang === 'ar' ? 'ar-DZ' : currentLang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
 
         return `
-          <div class="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition" onclick="openDetail(${task.id})">
-            <div class="flex items-center justify-between">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-medium">${task.employee_name}</span>
-                  ${task.telegram_username ? `<span class="text-gray-500 text-sm">@${task.telegram_username}</span>` : ''}
-                  <span class="px-2 py-1 rounded text-xs ${statusColor}">${task.status}</span>
+          <div class="glass rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 md:p-5 cursor-pointer card-hover animate-fade-in" style="animation-delay: ${index * 50}ms" onclick="openDetail(${task.id})">
+            <div class="flex items-start gap-3 sm:gap-4">
+              <div class="flex-shrink-0">
+                <div class="${status.bg} w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow-md" title="${status.text}">
+                  ${status.icon}
                 </div>
-                <div class="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                  <span>📷 ${task.photo_count}</span>
-                  <span>🎤 ${task.voice_count}</span>
-                  <span>${new Date(task.created_at).toLocaleString()}</span>
-                </div>
-                ${task.note_text ? `<p class="text-sm text-gray-600 mt-2 truncate">${task.note_text.substring(0, 100)}...</p>` : ''}
-                ${task.amount ? `<p class="text-sm font-medium text-green-600 mt-1">${task.amount} Dzd</p>` : ''}
               </div>
-              <button class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">View</button>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1.5 sm:mb-2">
+                  <span class="font-semibold text-gray-800 truncate text-sm sm:text-base">${task.employee_name}</span>
+                  ${task.telegram_username ? `<span class="text-gray-400 text-xs sm:text-sm">@${task.telegram_username}</span>` : ''}
+                </div>
+                <div class="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 mb-2 sm:mb-3 flex-wrap">
+                  <span class="flex items-center gap-1">
+                    <span class="text-sm">📷</span>
+                    <span class="font-medium text-xs sm:text-sm">${task.photo_count || 0}</span>
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <span class="text-sm">🎤</span>
+                    <span class="font-medium text-xs sm:text-sm">${task.voice_count || 0}</span>
+                  </span>
+                  <span class="text-gray-300 hidden sm:inline">•</span>
+                  <span class="text-xs sm:text-sm">${dateStr}</span>
+                  <span class="text-gray-300 hidden sm:inline">•</span>
+                  <span class="text-xs sm:text-sm">${timeStr}</span>
+                </div>
+                <div class="flex items-center gap-2 mb-2 sm:mb-3">
+                  <span class="px-2 py-1 rounded-lg text-xs font-medium ${status.bg} text-white">${status.text}</span>
+                </div>
+                ${task.note_text ? `<p class="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-2">${task.note_text.substring(0, 100)}...</p>` : ''}
+                ${task.amount ? `
+                  <div class="inline-flex items-center px-2 sm:px-3 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg">
+                    <span class="text-xs sm:text-sm font-semibold text-emerald-600">${task.amount} Dzd</span>
+                  </div>
+                ` : ''}
+              </div>
             </div>
           </div>
         `;
@@ -452,17 +798,37 @@
         const task = data.data;
         const content = document.getElementById('detail-content');
 
+        // Auto-change status to 'read' if currently 'unread' or 'received'
+        if (task.status === 'unread' || task.status === 'received') {
+          await fetch(`/api/tasks/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'read' }),
+            credentials: 'include'
+          });
+          task.status = 'read'; // Update local status
+        }
+
         // Photo grid
         let photoGrid = '';
         if (task.photos && task.photos.length > 0) {
           photoGrid = `
-            <div class="mb-4">
-              <h3 class="font-medium mb-2">Photos (${task.photos.length})</h3>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div class="mb-4 sm:mb-6">
+              <h3 class="font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+                <span class="text-lg sm:text-xl">📸</span>
+                ${t('photos')} (${task.photos.length})
+              </h3>
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                 ${task.photos.map(photo => `
-                  <img src="/${photo.file_path}" 
-                    class="w-full h-32 object-cover rounded cursor-pointer hover:opacity-80 transition"
-                    onclick="openLightbox('/${photo.file_path}')">
+                  <div class="relative group cursor-pointer" onclick="openLightbox('/${photo.file_path}')">
+                    <img src="/${photo.file_path}" 
+                      class="w-full h-24 sm:h-32 md:h-40 object-cover rounded-xl shadow-md transition-all duration-200 group-hover:scale-105 group-hover:shadow-lg">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <svg class="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                    </div>
+                  </div>
                 `).join('')}
               </div>
             </div>
@@ -473,12 +839,17 @@
         let voiceList = '';
         if (task.voices && task.voices.length > 0) {
           voiceList = `
-            <div class="mb-4">
-              <h3 class="font-medium mb-2">Voice Notes (${task.voices.length})</h3>
-              <div class="space-y-2">
+            <div class="mb-4 sm:mb-6">
+              <h3 class="font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+                <span class="text-lg sm:text-xl">🎤</span>
+                ${t('voiceNotes')} (${task.voices.length})
+              </h3>
+              <div class="space-y-2 sm:space-y-3">
                 ${task.voices.map((voice, index) => `
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm text-gray-500 w-16">Voice ${index + 1}</span>
+                  <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full gradient-bg flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm sm:text-base">
+                      ${index + 1}
+                    </div>
                     <audio controls class="flex-1">
                       <source src="/${voice.file_path}" type="audio/ogg">
                     </audio>
@@ -489,53 +860,77 @@
           `;
         }
 
+        const taskDate = new Date(task.created_at);
+        const dateStr = taskDate.toLocaleDateString(currentLang === 'ar' ? 'ar-DZ' : currentLang === 'fr' ? 'fr-FR' : 'en-US');
+        const timeStr = taskDate.toLocaleTimeString(currentLang === 'ar' ? 'ar-DZ' : currentLang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+
         content.innerHTML = `
-          <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <span class="font-medium">Employee:</span> ${task.employee_name}
-                ${task.telegram_username ? `<span class="text-gray-500">@${task.telegram_username}</span>` : ''}
+          <div class="space-y-4 sm:space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 sm:p-4">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">${t('employee')}</span>
+                <p class="font-semibold text-gray-800 mt-1 text-sm sm:text-base">${task.employee_name}</p>
+                ${task.telegram_username ? `<p class="text-xs sm:text-sm text-gray-500">@${task.telegram_username}</p>` : ''}
               </div>
-              <div>
-                <span class="font-medium">Phone:</span> ${task.employee_phone || 'N/A'}
+              <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 sm:p-4">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">${t('phone')}</span>
+                <p class="font-semibold text-gray-800 mt-1 text-sm sm:text-base">${task.employee_phone || 'N/A'}</p>
               </div>
-              <div>
-                <span class="font-medium">Status:</span> 
-                <span class="px-2 py-1 rounded text-xs ${task.status === 'unread' ? 'bg-red-100 text-red-800' : task.status === 'read' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}">${task.status}</span>
+              <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 sm:p-4">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">${t('status')}</span>
+                <p class="font-semibold text-gray-800 mt-1 capitalize text-sm sm:text-base">${t(task.status)}</p>
               </div>
-              <div>
-                <span class="font-medium">Created:</span> ${new Date(task.created_at).toLocaleString()}
+              <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 sm:p-4">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">${t('created')}</span>
+                <p class="font-semibold text-gray-800 mt-1 text-sm sm:text-base">${dateStr} ${timeStr}</p>
               </div>
             </div>
             ${photoGrid}
             ${voiceList}
-            ${task.note_text ? `<div><span class="font-medium">Note:</span><p class="mt-1 text-gray-700 whitespace-pre-wrap">${task.note_text}</p></div>` : ''}
-            <div class="border-t pt-4">
-              <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Status</label>
-                <select id="task-status" class="w-full px-3 py-2 border rounded-md">
-                  <option value="unread" ${task.status === 'unread' ? 'selected' : ''}>Unread</option>
-                  <option value="received" ${task.status === 'received' ? 'selected' : ''}>Received</option>
-                  <option value="read" ${task.status === 'read' ? 'selected' : ''}>Read</option>
-                  <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>
+            ${task.note_text ? `
+              <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 sm:p-4">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">${t('employeeNote')}</span>
+                <p class="mt-2 text-gray-700 whitespace-pre-wrap text-sm sm:text-base">${task.note_text}</p>
+              </div>
+            ` : ''}
+            <div class="border-t border-gray-200 pt-4 sm:pt-6">
+              <div class="mb-3 sm:mb-4">
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">${t('status')}</label>
+                <select id="task-status" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:border-purple-500 transition-all duration-200 bg-white text-sm sm:text-base">
+                  <option value="unread" ${task.status === 'unread' ? 'selected' : ''}>${t('pending')}</option>
+                  <option value="received" ${task.status === 'received' ? 'selected' : ''}>${t('received')}</option>
+                  <option value="read" ${task.status === 'read' ? 'selected' : ''}>${t('reviewing')}</option>
+                  <option value="done" ${task.status === 'done' ? 'selected' : ''}>${t('done')}</option>
                 </select>
               </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Accountant Note</label>
-                <textarea id="accountant-note" class="w-full px-3 py-2 border rounded-md" rows="3">${task.accountant_note || ''}</textarea>
+              <div class="mb-3 sm:mb-4">
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">${t('accountantNote')}</label>
+                <textarea id="accountant-note" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:border-purple-500 transition-all duration-200 resize-none text-sm sm:text-base" rows="3">${task.accountant_note || ''}</textarea>
               </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Amount</label>
-                <input type="number" id="amount" class="w-full px-3 py-2 border rounded-md" value="${task.amount || ''}" step="0.01">
+              <div class="mb-3 sm:mb-4">
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">${t('amount')}</label>
+                <input type="number" id="amount" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:border-purple-500 transition-all duration-200 text-sm sm:text-base" value="${task.amount || ''}" step="0.01">
               </div>
-              <div class="flex gap-2">
-                <button onclick="saveTask(${task.id})" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Save</button>
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <button onclick="saveTask(${task.id})" class="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 gradient-bg text-white rounded-xl font-semibold hover:opacity-90 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm sm:text-base">${t('saveChanges')}</button>
+                <button onclick="closeModal()" class="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 text-sm sm:text-base">${t('cancel')}</button>
+              </div>
+              <div class="border-t border-gray-200 pt-3 sm:pt-4">
+                <button onclick="deleteTask(${task.id})" class="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-semibold hover:opacity-90 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm sm:text-base flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                  Delete Task
+                </button>
               </div>
             </div>
           </div>
         `;
 
         document.getElementById('detail-modal').classList.remove('hidden');
+        
+        // Refresh tasks list to show updated status
+        refreshTasks();
       }
     }
 
@@ -574,10 +969,32 @@
 
       const data = await res.json();
       if (data.success) {
-        alert('Saved successfully');
+        alert(t('savedSuccessfully'));
+        closeModal();
         refreshTasks();
       } else {
-        alert('Error saving: ' + data.error);
+        alert(t('errorSaving') + data.error);
+      }
+    }
+
+    // Delete task
+    async function deleteTask(id) {
+      if (!confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+        return;
+      }
+
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('Task deleted successfully');
+        closeModal();
+        refreshTasks();
+      } else {
+        alert('Error deleting task: ' + data.error);
       }
     }
 
@@ -612,22 +1029,27 @@
       const tbody = document.getElementById('archived-list');
       
       if (archived.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-3 text-gray-500">No archived tasks found.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 sm:px-6 py-8 text-gray-500 text-center">${t('noArchived')}</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = archived.map(task => `
-        <tr>
-          <td class="px-4 py-3 text-sm">${task.employee_name}</td>
-          <td class="px-4 py-3 text-sm max-w-xs truncate">${task.note_text || '-'}</td>
-          <td class="px-4 py-3 text-sm max-w-xs truncate">${task.accountant_note || '-'}</td>
-          <td class="px-4 py-3 text-sm">${task.amount ? '$' + task.amount : '-'}</td>
-          <td class="px-4 py-3 text-sm">${task.photo_count}</td>
-          <td class="px-4 py-3 text-sm">${task.voice_count}</td>
-          <td class="px-4 py-3 text-sm">${new Date(task.task_done_at).toLocaleString()}</td>
-          <td class="px-4 py-3 text-sm">${new Date(task.archived_at).toLocaleString()}</td>
+      tbody.innerHTML = archived.map(task => {
+        const doneDate = new Date(task.task_done_at).toLocaleDateString(currentLang === 'ar' ? 'ar-DZ' : currentLang === 'fr' ? 'fr-FR' : 'en-US');
+        const archivedDate = new Date(task.archived_at).toLocaleDateString(currentLang === 'ar' ? 'ar-DZ' : currentLang === 'fr' ? 'fr-FR' : 'en-US');
+        
+        return `
+        <tr class="hover:bg-purple-50/50 transition-colors">
+          <td class="px-4 sm:px-6 py-4 text-sm font-medium text-gray-800">${task.employee_name}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm text-gray-600 max-w-xs truncate">${task.note_text || '-'}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm text-gray-600 max-w-xs truncate hidden sm:table-cell">${task.accountant_note || '-'}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm font-medium text-emerald-600">${task.amount ? task.amount + ' Dzd' : '-'}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">${task.photo_count}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">${task.voice_count}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm text-gray-600 hidden lg:table-cell">${doneDate}</td>
+          <td class="px-4 sm:px-6 py-4 text-sm text-gray-600 hidden lg:table-cell">${archivedDate}</td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // Auto-refresh every 5 seconds (only on tasks tab)
@@ -639,6 +1061,10 @@
 
     // Initial auth check
     checkAuth();
+    
+    // Initialize language
+    document.getElementById('language-selector').value = currentLang;
+    setLanguage(currentLang);
   </script>
 </body>
 </html>

@@ -4,6 +4,9 @@ const path = require('path');
 const dbPath = path.join(__dirname, 'db.sqlite');
 const db = new Database(dbPath);
 
+// Enable foreign keys
+db.pragma('foreign_keys = ON');
+
 console.log('Connected to SQLite database (better-sqlite3)');
 
 function initTables() {
