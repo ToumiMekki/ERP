@@ -7,6 +7,63 @@ const sharp = require('sharp');
 const ffmpeg = require('fluent-ffmpeg');
 const { messages } = require('./bot-messages');
 
+// Configure ffmpeg for cross-platform support
+if (process.platform !== 'win32') {
+  // Linux/Unix: use system ffmpeg if available
+  const ffmpegPath = '/usr/bin/ffmpeg';
+  const ffprobePath = '/usr/bin/ffprobe';
+  
+  if (fs.existsSync(ffmpegPath)) {
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    console.log(`[FFmpeg] Using system ffmpeg: ${ffmpegPath}`);
+  } else {
+    console.warn(`[FFmpeg] System ffmpeg not found at ${ffmpegPath}, will use PATH`);
+  }
+  
+  if (fs.existsSync(ffprobePath)) {
+    ffmpeg.setFfprobePath(ffprobePath);
+    console.log(`[FFmpeg] Using system ffprobe: ${ffprobePath}`);
+  } else {
+    console.warn(`[FFmpeg] System ffprobe not found at ${ffprobePath}, will use PATH`);
+  }
+} else {
+  console.log(`[FFmpeg] Running on Windows, using PATH for ffmpeg`);
+}
+
+// Helper function to ensure directory exists
+async function ensureDirectoryExists(dirPath) {
+  try {
+    await fs.promises.mkdir(dirPath, { recursive: true });
+  } catch (error) {
+    if (error.code !== 'EEXIST') {
+      throw error;
+    }
+  }
+}
+
+// Helper function to check if file exists
+async function fileExists(filePath) {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Helper function for detailed error logging
+function logError(context, error, additionalInfo = {}) {
+  console.error(`[ERROR] ${context}`);
+  console.error('Stack:', error.stack);
+  console.error('Message:', error.message);
+  console.error('Code:', error.code);
+  console.error('Platform:', process.platform);
+  console.error('CWD:', process.cwd());
+  Object.keys(additionalInfo).forEach(key => {
+    console.error(`${key}:`, additionalInfo[key]);
+  });
+}
+
 const token = process.env.BOT_TOKEN;
 if (!token) {
   console.error('BOT_TOKEN not set in .env');
@@ -55,6 +112,7 @@ function downloadFile(url, destPath) {
         resolve();
       });
     }).on('error', (err) => {
+      // Clean up partial download
       fs.unlink(destPath, () => {});
       reject(err);
     });
@@ -442,21 +500,59 @@ bot.on('photo', async (msg) => {
     const fullPath = path.join(__dirname, photoPath);
     const fullTempPath = path.join(__dirname, tempPath);
 
-    await downloadFile(fileLink, fullPath);
+    // Ensure upload directories exist
+    const photoDir = path.join(__dirname, 'uploads', 'photos');
+    await ensureDirectoryExists(photoDir);
+
+    // Download file from Telegram
+    try {
+      await downloadFile(fileLink, fullPath);
+    } catch (downloadError) {
+      logError('Photo download failed', downloadError, {
+        fileLink,
+        fullPath,
+        fileId
+      });
+      throw new Error('Failed to download photo file from Telegram');
+    }
+
+    // Verify downloaded file exists
+    const downloadedExists = await fileExists(fullPath);
+    if (!downloadedExists) {
+      throw new Error('Downloaded photo file does not exist');
+    }
 
     // Compress photo using sharp - use temp file then replace
-    await sharp(fullPath)
-      .resize(1200, null, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toFile(fullTempPath);
+    try {
+      await sharp(fullPath)
+        .resize(1200, null, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toFile(fullTempPath);
+    } catch (sharpError) {
+      // Clean up temp file if compression failed
+      try {
+        if (await fileExists(fullTempPath)) {
+          await fs.promises.unlink(fullTempPath);
+        }
+      } catch (cleanupError) {
+        console.error('[Sharp] Failed to cleanup temp file:', cleanupError);
+      }
+      throw new Error(`Photo compression failed: ${sharpError.message}`);
+    }
+
+    // Verify output file was created
+    const outputExists = await fileExists(fullTempPath);
+    if (!outputExists) {
+      throw new Error('Sharp did not create output file');
+    }
 
     // Replace original with compressed version
     try {
-      fs.unlinkSync(fullPath);
+      await fs.promises.unlink(fullPath);
     } catch (e) {
       // Ignore if file doesn't exist
     }
-    fs.renameSync(fullTempPath, fullPath);
+    await fs.promises.rename(fullTempPath, fullPath);
 
     // Insert photo with file_id to prevent duplicates
     db.prepare('INSERT INTO task_photos (task_id, file_path, file_id, created_at) VALUES (?, ?, ?, datetime(\'now\'))').run(taskId, photoPath, fileId);
@@ -467,8 +563,22 @@ bot.on('photo', async (msg) => {
     bot.sendMessage(chatId, messages.photoReceived(photoCount));
 
   } catch (error) {
-    console.error('Error processing photo:', error);
-    bot.sendMessage(chatId, 'حدث خطأ في معالجة الصورة. يرجى المحاولة مرة أخرى.');
+    logError('Photo processing failed', error, {
+      chatId,
+      fileId,
+      taskId
+    });
+    
+    // Provide user-friendly error message based on error type
+    let userMessage = 'حدث خطأ في معالجة الصورة. يرجى المحاولة مرة أخرى.';
+    
+    if (error.message.includes('download')) {
+      userMessage = 'خطأ في تحميل الصورة من تيليجرام.';
+    } else if (error.message.includes('compression')) {
+      userMessage = 'خطأ في ضغط الصورة. يرجى المحاولة مرة أخرى.';
+    }
+    
+    bot.sendMessage(chatId, userMessage);
   }
 });
 
@@ -544,26 +654,78 @@ bot.on('voice', async (msg) => {
     const fullTempPath = path.join(__dirname, tempPath);
     const duration = msg.voice.duration || null;
 
-    await downloadFile(fileLink, fullPath);
+    // Ensure upload directories exist
+    const voiceDir = path.join(__dirname, 'uploads', 'voice');
+    await ensureDirectoryExists(voiceDir);
+
+    // Download file from Telegram
+    try {
+      await downloadFile(fileLink, fullPath);
+    } catch (downloadError) {
+      logError('Voice download failed', downloadError, {
+        fileLink,
+        fullPath,
+        fileId
+      });
+      throw new Error('Failed to download voice file from Telegram');
+    }
+
+    // Verify downloaded file exists
+    const downloadedExists = await fileExists(fullPath);
+    if (!downloadedExists) {
+      throw new Error('Downloaded voice file does not exist');
+    }
 
     // Compress voice using ffmpeg - use temp file then replace
-    await new Promise((resolve, reject) => {
-      ffmpeg(fullPath)
-        .audioBitrate('32k')
-        .audioChannels(1)
-        .toFormat('ogg')
-        .on('end', resolve)
-        .on('error', reject)
-        .save(fullTempPath);
-    });
+    try {
+      await new Promise((resolve, reject) => {
+        ffmpeg(fullPath)
+          .audioBitrate('32k')
+          .audioChannels(1)
+          .toFormat('ogg')
+          .on('start', (commandLine) => {
+            console.log('[FFmpeg] Command:', commandLine);
+          })
+          .on('end', () => {
+            console.log('[FFmpeg] Conversion completed successfully');
+            resolve();
+          })
+          .on('error', (err, stdout, stderr) => {
+            logError('FFmpeg conversion failed', err, {
+              stdout,
+              stderr,
+              inputPath: fullPath,
+              outputPath: fullTempPath
+            });
+            reject(new Error(`FFmpeg conversion failed: ${err.message}`));
+          })
+          .save(fullTempPath);
+      });
+    } catch (ffmpegError) {
+      // Clean up temp file if conversion failed
+      try {
+        if (await fileExists(fullTempPath)) {
+          await fs.promises.unlink(fullTempPath);
+        }
+      } catch (cleanupError) {
+        console.error('[FFmpeg] Failed to cleanup temp file:', cleanupError);
+      }
+      throw ffmpegError;
+    }
+
+    // Verify output file was created
+    const outputExists = await fileExists(fullTempPath);
+    if (!outputExists) {
+      throw new Error('FFmpeg did not create output file');
+    }
 
     // Replace original with compressed version
     try {
-      fs.unlinkSync(fullPath);
+      await fs.promises.unlink(fullPath);
     } catch (e) {
       // Ignore if file doesn't exist
     }
-    fs.renameSync(fullTempPath, fullPath);
+    await fs.promises.rename(fullTempPath, fullPath);
 
     // Insert voice with file_id for duplicate prevention
     db.prepare('INSERT INTO task_voices (task_id, file_path, duration_seconds, created_at) VALUES (?, ?, ?, datetime(\'now\'))').run(taskId, voicePath, duration);
@@ -572,8 +734,28 @@ bot.on('voice', async (msg) => {
     bot.sendMessage(chatId, messages.voiceReceived);
 
   } catch (error) {
-    console.error('Error processing voice:', error);
-    bot.sendMessage(chatId, 'حدث خطأ في معالجة الرسالة الصوتية. يرجى المحاولة مرة أخرى.');
+    logError('Voice processing failed', error, {
+      chatId,
+      fileId,
+      taskId
+    });
+    
+    // Provide user-friendly error message based on error type
+    let userMessage = 'حدث خطأ في معالجة الرسالة الصوتية. يرجى المحاولة مرة أخرى.';
+    
+    if (error.message.includes('FFmpeg') || error.message.includes('ffmpeg')) {
+      if (error.message.includes('not found') || error.message.includes('ENOENT')) {
+        userMessage = 'خطأ: FFmpeg غير مثبت على الخادم. يرجى تثبيت FFmpeg.';
+      } else if (error.message.includes('permission')) {
+        userMessage = 'خطأ: لا توجد صلاحيات للوصول للملفات.';
+      } else {
+        userMessage = 'خطأ في معالجة ملف الصوت. يرجى المحاولة مرة أخرى.';
+      }
+    } else if (error.message.includes('download')) {
+      userMessage = 'خطأ في تحميل ملف الصوت من تيليجرام.';
+    }
+    
+    bot.sendMessage(chatId, userMessage);
   }
 });
 
